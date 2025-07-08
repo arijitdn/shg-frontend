@@ -1,4 +1,3 @@
-import React, { useState, useRef } from "react";
 import NavigationTabs from "./NavigationTabs";
 import HeaderSection from "./HeaderSection";
 import Footer from "./Footer";
@@ -7,9 +6,9 @@ import Footer from "./Footer";
 import jsPDF from "jspdf";
 // @ts-ignore
 import html2canvas from "html2canvas";
+import { useState, useRef } from "react";
 
 interface ComparisonsPageProps {
-  adminData: any;
   isLoggedIn: boolean;
   userRole: string | null;
   onLogout?: () => void;
@@ -62,25 +61,7 @@ const dummyGrowth = [
   { year: "2023", shg1: 12, shg2: 8 },
 ];
 
-function downloadReport(shg1: string, shg2: string) {
-  const rows = [
-    ["Metric", shg1, shg2],
-    ...dummyComparison.map((row) => [row.metric, row.shg1, row.shg2]),
-  ];
-  const csv = rows.map((r) => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `SHG_Comparison_${shg1}_vs_${shg2}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
 export default function ComparisonsPage({
-  adminData,
   isLoggedIn,
   userRole,
   onLogout,
@@ -301,7 +282,7 @@ export default function ComparisonsPage({
                 style={{ background: "none" }}
               >
                 <div className="absolute left-0 right-0 bottom-8 h-px bg-zinc-300" />
-                {dummyProducts.map((product, idx) => {
+                {dummyProducts.map((product) => {
                   const maxBarHeight = 150;
                   const maxValue = 120;
                   const bar1Height =

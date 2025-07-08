@@ -280,7 +280,6 @@ function App() {
               path="/comparisons"
               element={
                 <ComparisonsPage
-                  adminData={adminData}
                   isLoggedIn={isLoggedIn}
                   userRole={userRole}
                   onLogout={handleLogout}

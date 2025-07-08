@@ -7,6 +7,34 @@ import AdminDashboardView from "./AdminDashboardView";
 import Footer from "./Footer";
 import Modal from "./Modal";
 
+interface SHGMember {
+  id: number;
+  name: string;
+  age: number;
+  occupation: string;
+  savings: number;
+}
+interface SHG {
+  members: SHGMember[];
+  products: string[];
+  totalSavings: number;
+}
+interface Village {
+  shgs: { [shgName: string]: SHG };
+}
+interface GramPanchayat {
+  villages: { [villageName: string]: Village };
+}
+interface Block {
+  gramPanchayats: { [gpName: string]: GramPanchayat };
+}
+interface District {
+  blocks: { [blockName: string]: Block };
+}
+interface TripuraData {
+  [districtName: string]: District;
+}
+
 interface TripuraSHGPortalProps {
   adminData: any;
   isLoggedIn: boolean;
@@ -22,14 +50,14 @@ export default function TripuraSHGPortal({
   onLogout,
   onShowLogin,
 }: TripuraSHGPortalProps) {
-  const [currentView, setCurrentView] = useState("portal");
+  const [currentView] = useState("portal");
 
   const [selectedDistrict, setSelectedDistrict] = useState("");
   const [selectedBlock, setSelectedBlock] = useState("");
   const [selectedGramPanchayat, setSelectedGramPanchayat] = useState("");
   const [selectedVillage, setSelectedVillage] = useState("");
   const [selectedSHG, setSelectedSHG] = useState("");
-  const [shgMembers, setShgMembers] = useState([]);
+  const [shgMembers, setShgMembers] = useState<SHGMember[]>([]);
   const [recentSHGs, setRecentSHGs] = useState<any[]>([]);
   const [showCreateSHG, setShowCreateSHG] = useState(false);
   const [newSHG, setNewSHG] = useState({
@@ -39,25 +67,37 @@ export default function TripuraSHGPortal({
     blockName: "",
     members: [{ name: "", phone: "" }],
   });
-  const [reviewModal, setReviewModal] = useState({
+  const [reviewModal, setReviewModal] = useState<{
+    open: boolean;
+    product: any;
+    reason: string;
+    type: string;
+  }>({
     open: false,
     product: null,
     reason: "",
     type: "",
   });
-  const [confirmAction, setConfirmAction] = useState({
+  const [confirmAction, setConfirmAction] = useState<{
+    open: boolean;
+    product: any;
+    type: string;
+  }>({
     open: false,
     product: null,
     type: "",
   });
-  const [confirmReject, setConfirmReject] = useState({
+  const [confirmReject, setConfirmReject] = useState<{
+    open: boolean;
+    product: any;
+  }>({
     open: false,
     product: null,
   });
   const [productStatuses, setProductStatuses] = useState<any>({});
   const [hiddenProductIds, setHiddenProductIds] = useState<number[]>([]);
 
-  const [tripuraData] = useState({
+  const [tripuraData] = useState<TripuraData>({
     DHALAI: {
       blocks: {
         Ambassa: {
@@ -221,10 +261,6 @@ export default function TripuraSHGPortal({
         shg: selectedSHG,
       }
     : undefined;
-
-  function setView(view: string) {
-    setCurrentView(view);
-  }
 
   function selectDistrict(district: string) {
     setSelectedDistrict(district);
@@ -560,12 +596,18 @@ export default function TripuraSHGPortal({
                         : "bg-red-500 text-white hover:bg-red-600"
                     }`}
                     onClick={() => {
-                      if (confirmAction.type === "approve") {
+                      if (
+                        confirmAction.type === "approve" &&
+                        confirmAction.product
+                      ) {
                         handleProductAction(
                           confirmAction.product.id,
                           "approved"
                         );
-                      } else if (confirmAction.type === "recommend") {
+                      } else if (
+                        confirmAction.type === "recommend" &&
+                        confirmAction.product
+                      ) {
                         handleProductAction(
                           confirmAction.product.id,
                           "recommended"
@@ -1010,7 +1052,11 @@ export default function TripuraSHGPortal({
         {isLoggedIn &&
         !["DMMU", "BMMU", "CLF", "VO"].includes(userRole || "") &&
         currentView !== "portal" ? (
-          <AdminDashboardView adminData={adminData} />
+          <AdminDashboardView
+            adminData={adminData}
+            isLoggedIn={isLoggedIn}
+            userRole={userRole}
+          />
         ) : null}
       </main>
       <Footer />

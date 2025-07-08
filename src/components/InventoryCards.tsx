@@ -1,5 +1,3 @@
-import React from "react";
-
 interface InventoryItem {
   category: string;
   value: number;
@@ -56,12 +54,12 @@ export default function InventoryCards({ inventory }: InventoryCardsProps) {
                     index === 0
                       ? "rgb(91, 192, 222)"
                       : index === 1
-                        ? "rgb(40, 167, 69)"
-                        : index === 2
-                          ? "rgb(255, 193, 7)"
-                          : index === 3
-                            ? "rgb(220, 53, 69)"
-                            : "rgb(108, 117, 125)",
+                      ? "rgb(40, 167, 69)"
+                      : index === 2
+                      ? "rgb(255, 193, 7)"
+                      : index === 3
+                      ? "rgb(220, 53, 69)"
+                      : "rgb(108, 117, 125)",
                   width: `${(item.value / maxValue) * 100}%`,
                 }}
               />

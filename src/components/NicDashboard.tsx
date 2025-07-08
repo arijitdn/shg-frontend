@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 
 const initialPosts = [
   { id: 1, name: "A", employees: [] },

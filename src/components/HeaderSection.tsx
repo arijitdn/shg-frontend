@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function HeaderSection() {
   return (
     <header className="overflow-hidden relative p-4 shadow-[0_4px_12px_rgba(0,0,0,0.15)]">

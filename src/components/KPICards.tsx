@@ -1,5 +1,3 @@
-import React from "react";
-
 interface KPICardsProps {
   adminData: any;
 }
@@ -7,21 +5,21 @@ interface KPICardsProps {
 export default function KPICards({ adminData }: KPICardsProps) {
   const totalOrders = adminData.salesData.reduce(
     (sum: number, month: any) => sum + month.orders,
-    0,
+    0
   );
 
   const avgOrderValue = Math.round(
     adminData.salesData.reduce(
       (sum: number, month: any) => sum + month.avgOrder,
-      0,
-    ) / adminData.salesData.length,
+      0
+    ) / adminData.salesData.length
   );
 
   const avgTargetAchievement = Math.round(
     adminData.monthlyTargets.reduce(
       (sum: number, target: any) => sum + target.percentage,
-      0,
-    ) / adminData.monthlyTargets.length,
+      0
+    ) / adminData.monthlyTargets.length
   );
 
   return (

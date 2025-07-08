@@ -1,5 +1,3 @@
-import React from "react";
-
 interface MonthlyTarget {
   month: string;
   target: number;
@@ -29,8 +27,8 @@ export default function TargetChart({ monthlyTargets }: TargetChartProps) {
                     target.percentage >= 100
                       ? "rgb(40, 167, 69)"
                       : target.percentage >= 90
-                        ? "rgb(255, 193, 7)"
-                        : "rgb(220, 53, 69)",
+                      ? "rgb(255, 193, 7)"
+                      : "rgb(220, 53, 69)",
                   width: `${Math.min(target.percentage, 100)}%`,
                 }}
               />
