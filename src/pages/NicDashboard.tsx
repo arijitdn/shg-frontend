@@ -1,406 +1,692 @@
+"use client";
+
 import { useState } from "react";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../components/ui/table";
+import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "../components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import {
+  Edit,
+  MoreHorizontal,
+  Plus,
+  Search,
+  Shield,
+  Trash2,
+  UserCheck,
+  UserX,
+  Users,
+} from "lucide-react";
+import Footer from "../components/Footer";
 
-const initialPosts = [
-  { id: 1, name: "A", employees: [] },
-  { id: 2, name: "B", employees: [] },
-  { id: 3, name: "C", employees: [] },
-  { id: 4, name: "D", employees: [] },
-  { id: 5, name: "E", employees: [] },
+// Mock data
+const posts = [
+  {
+    id: 1,
+    name: "District Collector Office",
+    location: "Mumbai",
+    employeeCount: 45,
+    status: "Active",
+  },
+  {
+    id: 2,
+    name: "Regional Transport Office",
+    location: "Delhi",
+    employeeCount: 32,
+    status: "Active",
+  },
+  {
+    id: 3,
+    name: "Public Works Department",
+    location: "Bangalore",
+    employeeCount: 28,
+    status: "Active",
+  },
+  {
+    id: 4,
+    name: "Health Department",
+    location: "Chennai",
+    employeeCount: 67,
+    status: "Inactive",
+  },
 ];
 
-const dummyEmployees = [
-  { id: 1, name: "Alice", phone: "9876543210", postId: 1, active: true },
-  { id: 2, name: "Bob", phone: "9123456780", postId: 2, active: true },
-  { id: 3, name: "Charlie", phone: "9988776655", postId: 1, active: false },
-  { id: 4, name: "David", phone: "9001122334", postId: 3, active: true },
-  { id: 5, name: "Eva", phone: "9112233445", postId: 4, active: true },
+const employees = [
+  {
+    id: 1,
+    name: "Rajesh Kumar",
+    email: "rajesh.kumar@nic.in",
+    post: "District Collector Office",
+    designation: "Assistant Collector",
+    status: "Active",
+    joinDate: "2020-03-15",
+  },
+  {
+    id: 2,
+    name: "Priya Sharma",
+    email: "priya.sharma@nic.in",
+    post: "Regional Transport Office",
+    designation: "RTO Officer",
+    status: "Active",
+    joinDate: "2019-07-22",
+  },
+  {
+    id: 3,
+    name: "Amit Patel",
+    email: "amit.patel@nic.in",
+    post: "Public Works Department",
+    designation: "Engineer",
+    status: "Disabled",
+    joinDate: "2021-01-10",
+  },
+  {
+    id: 4,
+    name: "Sunita Reddy",
+    email: "sunita.reddy@nic.in",
+    post: "Health Department",
+    designation: "Medical Officer",
+    status: "Active",
+    joinDate: "2018-11-05",
+  },
+  {
+    id: 5,
+    name: "Vikram Singh",
+    email: "vikram.singh@nic.in",
+    post: "District Collector Office",
+    designation: "Clerk",
+    status: "Active",
+    joinDate: "2022-02-28",
+  },
 ];
 
-export default function NicDashboard() {
-  const [tab, setTab] = useState("posts");
-  const [posts, setPosts] = useState(() =>
-    initialPosts.map((p) => ({
-      ...p,
-      employees: dummyEmployees.filter((e) => e.postId === p.id),
-    }))
+export default function NICAdminDashboard() {
+  const [selectedPost, setSelectedPost] = useState<string>("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editingEmployee, setEditingEmployee] = useState<any>(null);
+  const [editingPost, setEditingPost] = useState<any>(null);
+
+  const filteredEmployees = employees.filter(
+    (emp) =>
+      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.post.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  const [allEmployees, setAllEmployees] = useState(dummyEmployees);
-  const [newEmployee, setNewEmployee] = useState({ name: "", phone: "" });
-  const [addToPost, setAddToPost] = useState<number | null>(null);
-  const [editEmployee, setEditEmployee] = useState<any>(null);
-  const [newPostName, setNewPostName] = useState("");
-  const [editPostId, setEditPostId] = useState<number | null>(null);
-  const [editPostName, setEditPostName] = useState("");
 
-  // Add new post
-  function handleAddPost() {
-    if (!newPostName.trim()) return;
-    const id = Math.max(0, ...posts.map((p) => p.id)) + 1;
-    setPosts((prev) => [
-      ...prev,
-      { id, name: newPostName.trim(), employees: [] },
-    ]);
-    setNewPostName("");
-  }
-
-  // Edit post name
-  function handleEditPostName(postId: number) {
-    setPosts((prev) =>
-      prev.map((p) => (p.id === postId ? { ...p, name: editPostName } : p))
-    );
-    setEditPostId(null);
-    setEditPostName("");
-  }
-
-  // Add employee to post
-  function handleAddEmployee(postId: number) {
-    if (!newEmployee.name || !newEmployee.phone) return;
-    const id = Math.max(0, ...allEmployees.map((e) => e.id)) + 1;
-    const emp = {
-      id,
-      name: newEmployee.name,
-      phone: newEmployee.phone,
-      postId,
-      active: true,
-    };
-    setAllEmployees((prev) => [...prev, emp]);
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === postId ? { ...p, employees: [...p.employees, emp] } : p
-      )
-    );
-    setNewEmployee({ name: "", phone: "" });
-    setAddToPost(null);
-  }
-
-  // Update employee details
-  function handleUpdateEmployee() {
-    setAllEmployees((prev) =>
-      prev.map((e) => (e.id === editEmployee.id ? { ...editEmployee } : e))
-    );
-    setPosts((prev) =>
-      prev.map((p) => ({
-        ...p,
-        employees: p.employees.map((e: any) =>
-          e.id === editEmployee.id ? { ...editEmployee } : e
-        ),
-      }))
-    );
-    setEditEmployee(null);
-  }
-
-  // Toggle active/inactive
-  function handleToggleActive(emp: any) {
-    const updated = { ...emp, active: !emp.active };
-    setAllEmployees((prev) => prev.map((e) => (e.id === emp.id ? updated : e)));
-    setPosts((prev) =>
-      prev.map((p) => ({
-        ...p,
-        employees: p.employees.map((e: any) => (e.id === emp.id ? updated : e)),
-      }))
-    );
-  }
+  const employeesByPost = selectedPost
+    ? employees.filter((emp) => emp.post === selectedPost)
+    : [];
 
   return (
-    <div className="min-h-screen bg-white p-8">
-      <h1 className="text-3xl font-bold text-blue-700 mb-8">NIC Dashboard</h1>
-      <div className="flex gap-4 mb-8">
-        <button
-          className={`px-6 py-2 rounded font-semibold shadow ${
-            tab === "posts"
-              ? "bg-blue-500 text-white"
-              : "bg-gray-100 text-gray-700"
-          }`}
-          onClick={() => setTab("posts")}
-        >
-          Manage Posts
-        </button>
-        <button
-          className={`px-6 py-2 rounded font-semibold shadow ${
-            tab === "employees"
-              ? "bg-blue-500 text-white"
-              : "bg-gray-100 text-gray-700"
-          }`}
-          onClick={() => setTab("employees")}
-        >
-          Manage Employees
-        </button>
-      </div>
-      {tab === "posts" && (
-        <>
-          {/* Create New Post Section */}
-          <div className="mb-8 flex gap-2 items-end">
-            <input
-              className="flex-1 px-3 py-2 border border-gray-300 rounded"
-              placeholder="New Post Name"
-              value={newPostName}
-              onChange={(e) => setNewPostName(e.target.value)}
-            />
-            <button
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
-              onClick={handleAddPost}
-            >
-              Create Post
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {posts.map((post) => (
-              <div
-                key={post.id}
-                className="bg-stone-50 border border-zinc-300 rounded-lg p-6 shadow"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  {editPostId === post.id ? (
-                    <div className="flex gap-2 items-center">
-                      <input
-                        className="px-2 py-1 border rounded"
-                        value={editPostName}
-                        onChange={(e) => setEditPostName(e.target.value)}
-                      />
-                      <button
-                        className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs font-semibold"
-                        onClick={() => handleEditPostName(post.id)}
-                      >
-                        Save
-                      </button>
-                      <button
-                        className="px-2 py-1 text-red-500 font-bold"
-                        onClick={() => setEditPostId(null)}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ) : (
-                    <h2
-                      className="text-xl font-bold text-neutral-700 cursor-pointer hover:underline"
-                      onClick={() => {
-                        setEditPostId(post.id);
-                        setEditPostName(post.name);
-                      }}
-                    >
-                      Post {post.name}
-                    </h2>
-                  )}
-                  <button
-                    className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm font-semibold"
-                    onClick={() => setAddToPost(post.id)}
-                  >
-                    + Add Employee
-                  </button>
-                </div>
-                {addToPost === post.id && (
-                  <div className="mb-4 flex gap-2 items-end">
-                    <input
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded"
-                      placeholder="Employee Name"
-                      value={newEmployee.name}
-                      onChange={(e) =>
-                        setNewEmployee((prev) => ({
-                          ...prev,
-                          name: e.target.value,
-                        }))
-                      }
-                    />
-                    <input
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded"
-                      placeholder="Phone Number"
-                      value={newEmployee.phone}
-                      onChange={(e) =>
-                        setNewEmployee((prev) => ({
-                          ...prev,
-                          phone: e.target.value,
-                        }))
-                      }
-                    />
-                    <button
-                      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 font-semibold"
-                      onClick={() => handleAddEmployee(post.id)}
-                    >
-                      Add
-                    </button>
-                    <button
-                      className="px-2 py-2 text-red-500 font-bold"
-                      onClick={() => setAddToPost(null)}
-                    >
-                      ×
-                    </button>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 gap-4">
-                  {post.employees.length === 0 && (
-                    <div className="text-neutral-400 italic">
-                      No employees yet.
-                    </div>
-                  )}
-                  {post.employees.map((emp: any) => (
-                    <div
-                      key={emp.id}
-                      className={`rounded-lg p-4 shadow flex flex-col gap-2 border ${
-                        emp.active
-                          ? "border-green-400 bg-white"
-                          : "border-red-300 bg-red-50"
-                      }`}
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-semibold text-lg text-neutral-700">
-                            {emp.name}
-                          </div>
-                          <div className="text-sm text-neutral-500">
-                            {emp.phone}
-                          </div>
-                        </div>
-                        <span
-                          className={`px-3 py-1 rounded text-xs font-bold ${
-                            emp.active
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {emp.active ? "Active" : "Inactive"}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-      {tab === "employees" && (
-        <div className="bg-stone-50 border border-zinc-300 rounded-lg p-6 shadow">
-          <h2 className="text-xl font-bold text-neutral-700 mb-4">
-            All Employees
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full border border-zinc-200 rounded-lg bg-white">
-              <thead>
-                <tr className="bg-stone-50">
-                  <th className="p-3 text-left text-neutral-500 text-base font-semibold">
-                    S. No.
-                  </th>
-                  <th className="p-3 text-left text-neutral-500 text-base font-semibold">
-                    Name
-                  </th>
-                  <th className="p-3 text-left text-neutral-500 text-base font-semibold">
-                    Phone
-                  </th>
-                  <th className="p-3 text-left text-neutral-500 text-base font-semibold">
-                    Post
-                  </th>
-                  <th className="p-3 text-left text-neutral-500 text-base font-semibold">
-                    Status
-                  </th>
-                  <th className="p-3 text-left text-neutral-500 text-base font-semibold">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {posts
-                  .flatMap((post) =>
-                    post.employees.map((emp: any) => ({
-                      ...emp,
-                      postName: post.name,
-                    }))
-                  )
-                  .sort((a, b) => {
-                    if (a.postName < b.postName) return -1;
-                    if (a.postName > b.postName) return 1;
-                    return 0;
-                  })
-                  .map((emp, idx) => (
-                    <tr key={emp.id} className="border-t border-zinc-200">
-                      <td className="p-3 text-neutral-700">{idx + 1}</td>
-                      <td className="p-3 text-neutral-700 font-medium">
-                        {editEmployee && editEmployee.id === emp.id ? (
-                          <input
-                            className="px-2 py-1 border rounded"
-                            value={editEmployee.name}
-                            onChange={(e) =>
-                              setEditEmployee((prev: any) => ({
-                                ...prev,
-                                name: e.target.value,
-                              }))
-                            }
-                          />
-                        ) : (
-                          emp.name
-                        )}
-                      </td>
-                      <td className="p-3 text-neutral-700">
-                        {editEmployee && editEmployee.id === emp.id ? (
-                          <input
-                            className="px-2 py-1 border rounded"
-                            value={editEmployee.phone}
-                            onChange={(e) =>
-                              setEditEmployee((prev: any) => ({
-                                ...prev,
-                                phone: e.target.value,
-                              }))
-                            }
-                          />
-                        ) : (
-                          emp.phone
-                        )}
-                      </td>
-                      <td className="p-3 text-neutral-700">{emp.postName}</td>
-                      <td className="p-3">
-                        <span
-                          className={`px-3 py-1 rounded text-xs font-bold ${
-                            emp.active
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {emp.active ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="p-3 flex gap-2 items-center">
-                        {editEmployee && editEmployee.id === emp.id ? (
-                          <>
-                            <button
-                              className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs font-semibold"
-                              onClick={handleUpdateEmployee}
-                            >
-                              Save
-                            </button>
-                            <button
-                              className="px-2 py-1 text-red-500 font-bold"
-                              onClick={() => setEditEmployee(null)}
-                            >
-                              ×
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 text-xs font-semibold"
-                              onClick={() => setEditEmployee(emp)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className={`px-3 py-1 rounded text-xs font-semibold ${
-                                emp.active
-                                  ? "bg-red-500 text-white hover:bg-red-600"
-                                  : "bg-green-500 text-white hover:bg-green-600"
-                              }`}
-                              onClick={() => handleToggleActive(emp)}
-                            >
-                              {emp.active ? "Mark Inactive" : "Mark Active"}
-                            </button>
-                          </>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div
+        className="relative h-48 bg-cover bg-center"
+        style={{ backgroundImage: "url('/banner.jpeg')" }}
+      >
+        <div className="absolute inset-0 bg-black bg-opacity-40" />
+        <div className="relative z-10 flex items-center justify-center h-full px-6">
+          <div className="text-white text-center">
+            <h1 className="text-2xl font-extrabold">
+              National Informatics Center
+            </h1>
+            <p className="text-sm opacity-90">SHG Portal - Admin Dashboard</p>
           </div>
         </div>
-      )}
+      </div>
+
+      {/* Main Content */}
+      <div className="container mx-auto px-6 py-8">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              Admin Dashboard
+            </h2>
+            <Button
+              variant="secondary"
+              className="bg-sky-400 hover:bg-sky-500 text-white"
+            >
+              Logout
+            </Button>
+          </div>
+          <p className="text-gray-600">
+            Manage employees and posts across all government departments
+          </p>
+        </div>
+
+        <Tabs defaultValue="posts" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="posts">Manage Posts</TabsTrigger>
+            <TabsTrigger value="employees-by-post">
+              Employees by Post
+            </TabsTrigger>
+            <TabsTrigger value="all-employees">All Employees</TabsTrigger>
+          </TabsList>
+
+          {/* Manage Posts Tab */}
+          <TabsContent value="posts">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Posts Management</CardTitle>
+                    <CardDescription>
+                      View and manage all government posts
+                    </CardDescription>
+                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add New Post
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add New Post</DialogTitle>
+                        <DialogDescription>
+                          Create a new government post
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="post-name" className="text-right">
+                            Name
+                          </Label>
+                          <Input id="post-name" className="col-span-3" />
+                        </div>
+                        <div className="grid grid-cols-4 items-center gap-4">
+                          <Label htmlFor="post-location" className="text-right">
+                            Location
+                          </Label>
+                          <Input id="post-location" className="col-span-3" />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button type="submit">Create Post</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Post Name</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Employees</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {posts.map((post) => (
+                      <TableRow key={post.id}>
+                        <TableCell className="font-medium">
+                          {post.name}
+                        </TableCell>
+                        <TableCell>{post.location}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {post.employeeCount} employees
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              post.status === "Active"
+                                ? "default"
+                                : "destructive"
+                            }
+                          >
+                            {post.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => setEditingPost(post)}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Post
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Users className="mr-2 h-4 w-4" />
+                                View Employees
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-red-600">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Post
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Employees by Post Tab */}
+          <TabsContent value="employees-by-post">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Employees by Post</CardTitle>
+                    <CardDescription>
+                      View employees assigned to specific posts
+                    </CardDescription>
+                  </div>
+                  <Select value={selectedPost} onValueChange={setSelectedPost}>
+                    <SelectTrigger className="w-[300px]">
+                      <SelectValue placeholder="Select a post" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {posts.map((post) => (
+                        <SelectItem key={post.id} value={post.name}>
+                          {post.name} - {post.location}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {selectedPost ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Designation</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Join Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {employeesByPost.map((employee) => (
+                        <TableRow key={employee.id}>
+                          <TableCell className="font-medium">
+                            {employee.name}
+                          </TableCell>
+                          <TableCell>{employee.email}</TableCell>
+                          <TableCell>{employee.designation}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                employee.status === "Active"
+                                  ? "default"
+                                  : "destructive"
+                              }
+                            >
+                              {employee.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{employee.joinDate}</TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={() => setEditingEmployee(employee)}
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  {employee.status === "Active" ? (
+                                    <>
+                                      <UserX className="mr-2 h-4 w-4" />
+                                      Disable Account
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserCheck className="mr-2 h-4 w-4" />
+                                      Enable Account
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Shield className="mr-2 h-4 w-4" />
+                                  Transfer Post
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-red-600">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Remove Employee
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    Please select a post to view employees
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* All Employees Tab */}
+          <TabsContent value="all-employees">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>All Employees</CardTitle>
+                    <CardDescription>
+                      Manage all employees across all posts
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search employees..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8 w-[300px]"
+                      />
+                    </div>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Employee
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Post</TableHead>
+                      <TableHead>Designation</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Join Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredEmployees.map((employee) => (
+                      <TableRow key={employee.id}>
+                        <TableCell className="font-medium">
+                          {employee.name}
+                        </TableCell>
+                        <TableCell>{employee.email}</TableCell>
+                        <TableCell>{employee.post}</TableCell>
+                        <TableCell>{employee.designation}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              employee.status === "Active"
+                                ? "default"
+                                : "destructive"
+                            }
+                          >
+                            {employee.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{employee.joinDate}</TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => setEditingEmployee(employee)}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                {employee.status === "Active" ? (
+                                  <>
+                                    <UserX className="mr-2 h-4 w-4" />
+                                    Disable Account
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserCheck className="mr-2 h-4 w-4" />
+                                    Enable Account
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Shield className="mr-2 h-4 w-4" />
+                                Transfer Post
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-red-600">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Remove Employee
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Edit Employee Dialog */}
+        <Dialog
+          open={!!editingEmployee}
+          onOpenChange={() => setEditingEmployee(null)}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Employee Details</DialogTitle>
+              <DialogDescription>Update employee information</DialogDescription>
+            </DialogHeader>
+            {editingEmployee && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="emp-name" className="text-right">
+                    Name
+                  </Label>
+                  <Input
+                    id="emp-name"
+                    defaultValue={editingEmployee.name}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="emp-email" className="text-right">
+                    Email
+                  </Label>
+                  <Input
+                    id="emp-email"
+                    defaultValue={editingEmployee.email}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="emp-designation" className="text-right">
+                    Designation
+                  </Label>
+                  <Input
+                    id="emp-designation"
+                    defaultValue={editingEmployee.designation}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="emp-post" className="text-right">
+                    Post
+                  </Label>
+                  <Select defaultValue={editingEmployee.post}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {posts.map((post) => (
+                        <SelectItem key={post.id} value={post.name}>
+                          {post.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="submit">Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Post Dialog */}
+        <Dialog open={!!editingPost} onOpenChange={() => setEditingPost(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Edit Post Details</DialogTitle>
+              <DialogDescription>Update post information</DialogDescription>
+            </DialogHeader>
+            {editingPost && (
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="post-edit-name" className="text-right">
+                    Name
+                  </Label>
+                  <Input
+                    id="post-edit-name"
+                    defaultValue={editingPost.name}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="post-edit-location" className="text-right">
+                    Location
+                  </Label>
+                  <Input
+                    id="post-edit-location"
+                    defaultValue={editingPost.location}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="post-edit-status" className="text-right">
+                    Status
+                  </Label>
+                  <Select defaultValue={editingPost.status}>
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Active">Active</SelectItem>
+                      <SelectItem value="Inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button type="submit">Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <footer className="px-4 py-5 mt-10 text-white bg-zinc-700">
+        <div className="flex justify-between items-center max-sm:flex-col max-sm:gap-2.5 max-sm:text-center">
+          <div className="flex items-center gap-6">
+            <div>
+              <img src="/nic-logo.png" alt="NIC Logo" className="h-8 w-auto" />
+            </div>
+            <div>
+              <div className="mb-1.5 text-xs">
+                Website Designed, Developed, hosted and maintained by National
+                Informatics Centre
+              </div>
+              <div className="text-xs">
+                <span>{new Date().toDateString()}</span>
+                <span> | Copyright © {new Date().getFullYear()}</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="text-xs">
+              <span>Privacy Policy</span>
+              <span> | Terms of Service</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
