@@ -1,12 +1,12 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import TripuraSHGPortal from "./components/TripuraSHGPortal";
-import AdminDashboardView from "./components/AdminDashboardView";
-import InventoryPage from "./components/InventoryPage";
-import LoginPage from "./components/LoginPage";
+import TripuraSHGPortal from "./pages/TripuraSHGPortal";
+import AdminDashboardView from "./pages/AdminDashboardView";
+import InventoryPage from "./pages/InventoryPage";
+import LoginPage from "./pages/LoginPage";
 import Modal from "./components/Modal";
 import { useState } from "react";
-import ComparisonsPage from "./components/ComparisonsPage";
-import NicDashboard from "./components/NicDashboard";
+import ComparisonsPage from "./pages/ComparisonsPage";
+import NicDashboard from "./pages/NicDashboard";
 
 function App() {
   const [adminData] = useState({

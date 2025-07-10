@@ -1,6 +1,6 @@
-import NavigationTabs from "./NavigationTabs";
-import HeaderSection from "./HeaderSection";
-import Footer from "./Footer";
+import NavigationTabs from "../components/NavigationTabs";
+import HeaderSection from "../components/HeaderSection";
+import Footer from "../components/Footer";
 // Add jsPDF and html2canvas imports
 // @ts-ignore
 import jsPDF from "jspdf";

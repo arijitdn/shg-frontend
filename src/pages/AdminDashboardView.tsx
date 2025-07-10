@@ -1,14 +1,14 @@
-import StatsCards from "./StatsCards";
-import SalesChart from "./SalesChart";
-import TargetChart from "./TargetChart";
-import SHGPerformanceCards from "./SHGPerformanceCards";
-import ProductsTable from "./ProductsTable";
-import InventoryCards from "./InventoryCards";
-import ProductMetricsCards from "./ProductMetricsCards";
-import KPICards from "./KPICards";
-import HeaderSection from "./HeaderSection";
-import NavigationTabs from "./NavigationTabs";
-import Footer from "./Footer";
+import StatsCards from "../components/StatsCards";
+import SalesChart from "../components/SalesChart";
+import TargetChart from "../components/TargetChart";
+import SHGPerformanceCards from "../components/SHGPerformanceCards";
+import ProductsTable from "../components/ProductsTable";
+import InventoryCards from "../components/InventoryCards";
+import ProductMetricsCards from "../components/ProductMetricsCards";
+import KPICards from "../components/KPICards";
+import HeaderSection from "../components/HeaderSection";
+import NavigationTabs from "../components/NavigationTabs";
+import Footer from "../components/Footer";
 import { useRef } from "react";
 // @ts-ignore
 import jsPDF from "jspdf";

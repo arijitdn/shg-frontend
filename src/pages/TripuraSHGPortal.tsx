@@ -1,11 +1,11 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import HeaderSection from "./HeaderSection";
-import NavigationTabs from "./NavigationTabs";
-import SHGPortalView from "./SHGPortalView";
+import HeaderSection from "../components/HeaderSection";
+import NavigationTabs from "../components/NavigationTabs";
+import SHGPortalView from "../components/SHGPortalView";
 import AdminDashboardView from "./AdminDashboardView";
-import Footer from "./Footer";
-import Modal from "./Modal";
+import Footer from "../components/Footer";
+import Modal from "../components/Modal";
 
 interface SHGMember {
   id: number;

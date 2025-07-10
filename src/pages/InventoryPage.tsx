@@ -1,7 +1,7 @@
 import { useState } from "react";
-import HeaderSection from "./HeaderSection";
-import NavigationTabs from "./NavigationTabs";
-import Footer from "./Footer";
+import HeaderSection from "../components/HeaderSection";
+import NavigationTabs from "../components/NavigationTabs";
+import Footer from "../components/Footer";
 
 interface Product {
   id: number;

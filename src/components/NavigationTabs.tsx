@@ -36,7 +36,7 @@ export default function NavigationTabs({
                   color: currentPath === "/" ? "white" : "rgb(119, 119, 119)",
                 }}
               >
-                SHG Portal
+                Home
               </button>
               {isLoggedIn && (
                 <button
@@ -94,18 +94,16 @@ export default function NavigationTabs({
           )}
         </div>
         <div className="flex gap-4 items-center">
-          <span className="text-sm text-neutral-500">Home</span>
-          <span className="text-sm text-neutral-500">Contact</span>
           {isLoggedIn ? (
             <span
-              className="text-sm text-red-500 cursor-pointer"
+              className="text-sm text-white bg-red-500 cursor-pointer px-4 py-2 rounded"
               onClick={onLogout}
             >
               Logout
             </span>
           ) : (
             <span
-              className="text-sm text-blue-500 cursor-pointer"
+              className="text-sm text-white cursor-pointer bg-[#5BC0DE] px-4 py-2 rounded"
               onClick={onShowLogin}
             >
               Login
