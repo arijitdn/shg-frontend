@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { Plus, Search, Edit, Send, Eye, Filter } from "lucide-react";
 import { Button } from "../components/ui/button";

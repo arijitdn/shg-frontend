@@ -1,4 +1,3 @@
-"use client";
 import React, { useState, useEffect } from "react";
 import HeaderSection from "../components/HeaderSection";
 import NavigationTabs from "../components/NavigationTabs";

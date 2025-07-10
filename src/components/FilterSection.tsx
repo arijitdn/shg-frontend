@@ -1,5 +1,3 @@
-"use client";
-
 interface FilterSectionProps {
   tripuraData: any;
   selectedDistrict: string;

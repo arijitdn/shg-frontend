@@ -1,4 +1,3 @@
-"use client";
 import { useNavigate, useLocation } from "react-router-dom";
 
 interface NavigationTabsProps {

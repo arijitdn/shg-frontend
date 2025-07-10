@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -63,6 +63,9 @@ import {
   BarChart3,
 } from "lucide-react";
 import { format } from "date-fns";
+import axios from "axios";
+import { BACKEND_URL } from "../lib/constants";
+import { useToast } from "../hooks/use-toast";
 
 // Types
 interface Member {
@@ -78,9 +81,10 @@ interface Organization {
   type: "SHG" | "VO" | "CLF";
   members: Member[];
   status: "active" | "inactive";
-  createdDate: string;
-  village?: string;
   block?: string;
+  district?: string;
+  voId?: string;
+  clfId?: string;
 }
 
 interface Product {
@@ -108,47 +112,33 @@ interface Meeting {
 }
 
 export default function BMMUDashboard() {
-  // State management
-  const [organizations, setOrganizations] = useState<Organization[]>([
-    {
-      id: "1",
-      name: "Mahila Shakti SHG",
-      type: "SHG",
-      members: [
-        {
-          id: "1",
-          name: "Priya Sharma",
-          phone: "9876543210",
-          joinDate: "2024-01-15",
-        },
-        {
-          id: "2",
-          name: "Sunita Devi",
-          phone: "9876543211",
-          joinDate: "2024-01-20",
-        },
-      ],
-      status: "active",
-      createdDate: "2024-01-10",
-      village: "Rampur",
-    },
-    {
-      id: "2",
-      name: "Gram Vikas VO",
-      type: "VO",
-      members: [
-        {
-          id: "3",
-          name: "Rajesh Kumar",
-          phone: "9876543212",
-          joinDate: "2024-02-01",
-        },
-      ],
-      status: "active",
-      createdDate: "2024-01-25",
-      village: "Shivpur",
-    },
-  ]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [totalShgs, setTotalShgs] = useState(0);
+  const [totalVos, setTotalVos] = useState(0);
+  const [totalClfs, setTotalClfs] = useState(0);
+  const { toast } = useToast();
+
+  async function fetchData() {
+    const { data } = await axios.get(`${BACKEND_URL}/shg`);
+    setOrganizations(data);
+    setTotalShgs(data.length);
+
+    const { data: voData } = await axios.get(`${BACKEND_URL}/vo`);
+    setOrganizations((prev) =>
+      prev.concat(voData.filter((org: Organization) => org.type === "VO"))
+    );
+    setTotalVos(voData.length);
+
+    const { data: clfData } = await axios.get(`${BACKEND_URL}/clf`);
+    setOrganizations((prev) =>
+      prev.concat(clfData.filter((org: Organization) => org.type === "CLF"))
+    );
+    setTotalClfs(clfData.length);
+  }
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const [products, setProducts] = useState<Product[]>([
     {
@@ -189,8 +179,10 @@ export default function BMMUDashboard() {
   const [newOrg, setNewOrg] = useState({
     name: "",
     type: "SHG" as "SHG" | "VO" | "CLF",
-    village: "",
     block: "",
+    district: "",
+    voId: "",
+    clfId: "",
   });
 
   const [newMember, setNewMember] = useState({
@@ -216,20 +208,79 @@ export default function BMMUDashboard() {
   });
 
   // Helper functions
-  const createOrganization = () => {
-    const org: Organization = {
-      id: Date.now().toString(),
-      name: newOrg.name,
-      type: newOrg.type,
-      members: [],
-      status: "active",
-      createdDate: new Date().toISOString().split("T")[0],
-      village: newOrg.village,
-      block: newOrg.block,
-    };
-    setOrganizations([...organizations, org]);
-    setNewOrg({ name: "", type: "SHG", village: "", block: "" });
-    setIsCreateOrgOpen(false);
+  const createOrganization = async () => {
+    if (newOrg.type === "CLF") {
+      const clf = {
+        name: newOrg.name,
+        district: newOrg.district,
+      };
+
+      const { data, status } = await axios.post(`${BACKEND_URL}/clf`, clf);
+      if (status !== 201) {
+        toast({
+          title: "Error",
+          description: "Failed to create CLF",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const org: Organization = {
+        id: data.id,
+        name: data.name,
+        type: "CLF",
+        members: [],
+        status: "active",
+        block: newOrg.block,
+        district: newOrg.district,
+        voId: "",
+        clfId: data.id,
+      };
+
+      setOrganizations([...organizations, org]);
+    } else if (newOrg.type === "VO") {
+      const vo = {
+        name: newOrg.name,
+        district: newOrg.district,
+        clfId: newOrg.clfId,
+      };
+
+      const { data, status } = await axios.post(`${BACKEND_URL}/vo`, vo);
+      if (status !== 201) {
+        toast({
+          title: "Error",
+          description: "Failed to create VO",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const org: Organization = {
+        id: data.id,
+        name: data.name,
+        type: "VO",
+        members: [],
+        status: "active",
+        block: newOrg.block,
+        district: newOrg.district,
+        voId: data.id,
+        clfId: newOrg.clfId,
+      };
+
+      setOrganizations([...organizations, org]);
+    } else if (newOrg.type === "SHG") {
+      const { data, status } = await axios.post(`${BACKEND_URL}/shg`, newOrg);
+      if (status !== 201) {
+        toast({
+          title: "Error",
+          description: "Failed to create SHG",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setOrganizations([...organizations, data]);
+    }
   };
 
   const addMember = () => {
@@ -373,9 +424,7 @@ export default function BMMUDashboard() {
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {organizations.filter((org) => org.type === "SHG").length}
-                  </div>
+                  <div className="text-2xl font-bold">{totalShgs}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -386,9 +435,7 @@ export default function BMMUDashboard() {
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {organizations.filter((org) => org.type === "VO").length}
-                  </div>
+                  <div className="text-2xl font-bold">{totalVos}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -399,9 +446,7 @@ export default function BMMUDashboard() {
                   <Building2 className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {organizations.filter((org) => org.type === "CLF").length}
-                  </div>
+                  <div className="text-2xl font-bold">{totalClfs}</div>
                 </CardContent>
               </Card>
               <Card>
@@ -412,12 +457,7 @@ export default function BMMUDashboard() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {organizations.reduce(
-                      (total, org) => total + org.members.length,
-                      0
-                    )}
-                  </div>
+                  <div className="text-2xl font-bold">15</div>
                 </CardContent>
               </Card>
             </div>
@@ -437,16 +477,12 @@ export default function BMMUDashboard() {
                         <div>
                           <p className="font-medium">{org.name}</p>
                           <p className="text-sm text-gray-500">
-                            {org.type} • {org.village}
+                            {org.type} - {org.district}
                           </p>
                         </div>
-                        <Badge
-                          variant={
-                            org.status === "active" ? "default" : "secondary"
-                          }
-                        >
-                          {org.status}
-                        </Badge>
+                        <div className="text-right">
+                          <Badge variant="outline">{org.status}</Badge>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -518,8 +554,8 @@ export default function BMMUDashboard() {
                         <TableCell>
                           <Badge variant="outline">{org.type}</Badge>
                         </TableCell>
-                        <TableCell>{org.village}</TableCell>
-                        <TableCell>{org.members.length}</TableCell>
+                        <TableCell>{org.district}</TableCell>
+                        <TableCell>15</TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-2">
                             <Switch
@@ -531,7 +567,6 @@ export default function BMMUDashboard() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>{org.createdDate}</TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
                             <Button
@@ -579,7 +614,7 @@ export default function BMMUDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {organizations.flatMap((org) =>
+                    {/* {organizations.flatMap((org) =>
                       org.members.map((member) => (
                         <TableRow key={`${org.id}-${member.id}`}>
                           <TableCell className="font-medium">
@@ -603,7 +638,7 @@ export default function BMMUDashboard() {
                           </TableCell>
                         </TableRow>
                       ))
-                    )}
+                    )} */}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -887,14 +922,14 @@ export default function BMMUDashboard() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="village">Village</Label>
+              <Label htmlFor="district">District</Label>
               <Input
-                id="village"
-                value={newOrg.village}
+                id="district"
+                value={newOrg.district}
                 onChange={(e) =>
-                  setNewOrg({ ...newOrg, village: e.target.value })
+                  setNewOrg({ ...newOrg, district: e.target.value })
                 }
-                placeholder="Enter village name"
+                placeholder="Enter district name"
               />
             </div>
             <div>
@@ -906,6 +941,26 @@ export default function BMMUDashboard() {
                   setNewOrg({ ...newOrg, block: e.target.value })
                 }
                 placeholder="Enter block name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="voId">VO ID</Label>
+              <Input
+                id="voId"
+                value={newOrg.voId}
+                onChange={(e) => setNewOrg({ ...newOrg, voId: e.target.value })}
+                placeholder="Enter VO ID"
+              />
+            </div>
+            <div>
+              <Label htmlFor="clfId">CLF ID</Label>
+              <Input
+                id="clfId"
+                value={newOrg.clfId}
+                onChange={(e) =>
+                  setNewOrg({ ...newOrg, clfId: e.target.value })
+                }
+                placeholder="Enter CLF ID"
               />
             </div>
             <div className="flex justify-end space-x-2">
