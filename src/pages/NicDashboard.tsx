@@ -61,7 +61,6 @@ import {
   UserX,
   Users,
 } from "lucide-react";
-import Footer from "../components/Footer";
 
 // Mock data
 const posts = [
@@ -165,7 +164,7 @@ export default function NICAdminDashboard() {
       {/* Header */}
       <div
         className="relative h-48 bg-cover bg-center"
-        style={{ backgroundImage: "url('/banner.jpeg')" }}
+        style={{ backgroundImage: "url('/banner.png')" }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-40" />
         <div className="relative z-10 flex items-center justify-center h-full px-6">
@@ -661,32 +660,6 @@ export default function NICAdminDashboard() {
           </DialogContent>
         </Dialog>
       </div>
-
-      <footer className="px-4 py-5 mt-10 text-white bg-zinc-700">
-        <div className="flex justify-between items-center max-sm:flex-col max-sm:gap-2.5 max-sm:text-center">
-          <div className="flex items-center gap-6">
-            <div>
-              <img src="/nic-logo.png" alt="NIC Logo" className="h-8 w-auto" />
-            </div>
-            <div>
-              <div className="mb-1.5 text-xs">
-                Website Designed, Developed, hosted and maintained by National
-                Informatics Centre
-              </div>
-              <div className="text-xs">
-                <span>{new Date().toDateString()}</span>
-                <span> | Copyright © {new Date().getFullYear()}</span>
-              </div>
-            </div>
-          </div>
-          <div>
-            <div className="text-xs">
-              <span>Privacy Policy</span>
-              <span> | Terms of Service</span>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
