@@ -444,6 +444,14 @@ export default function TripuraSHGPortal({
               forcedSHGValues={forcedSHGValues}
             />
           )}
+
+        {/* Not Logged In */}
+        {!isLoggedIn && currentView === "portal" && (
+          <div className="text-center text-gray-500 flex flex-col items-center justify-center h-64">
+            Please log in to access the SHG Portal!
+          </div>
+        )}
+
         {/* Product Reviews for CLF and VO */}
         {isLoggedIn && ["CLF", "VO"].includes(userRole || "") && (
           <div className="mb-8 p-6 bg-stone-50 border border-zinc-300 rounded-lg">
