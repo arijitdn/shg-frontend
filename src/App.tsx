@@ -7,6 +7,7 @@ import Footer from "./components/Footer";
 import VOApprovalPage from "./pages/VoPage";
 import CLFApprovalPage from "./pages/ClfPage";
 import BMMUDashboard from "./pages/BmmuDashboard";
+import DMMUDashboard from "./pages/DmmuPage";
 
 function App() {
   const location = useLocation();
@@ -20,6 +21,7 @@ function App() {
         <Route path="/vo" element={<VOApprovalPage />} />
         <Route path="/clf" element={<CLFApprovalPage />} />
         <Route path="/bmmu" element={<BMMUDashboard />} />
+        <Route path="/dmmu" element={<DMMUDashboard />} />
       </Routes>
       <Footer />
     </>

@@ -1,184 +1,323 @@
+import type React from "react";
+
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useToast } from "../hooks/use-toast";
+import { Button } from "../components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "../components/ui/tabs";
+import { Badge } from "../components/ui/badge";
+import { User, Shield, Building2, Users, Globe } from "lucide-react";
 import { users } from "../lib/users";
+import { useToast } from "../hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
-const userRoles = ["SHG", "VO", "CLF"];
-const adminRoles = ["NIC", "BMMU", "DMMU"];
-
-export default function HomePage() {
-  const [roleType, setRoleType] = useState<"user" | "admin">("user");
-  const [idOrEmail, setIdOrEmail] = useState("");
+export default function LoginPage() {
+  const [userId, setUserId] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+  const [userRole, setUserRole] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState(userRoles[0]);
-  const navigate = useNavigate();
+  const [adminRole, setAdminRole] = useState("");
+
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleRoleTypeToggle = (selected: "user" | "admin") => {
-    setRoleType(selected);
-    setRole(selected === "user" ? userRoles[0] : adminRoles[0]);
-    setIdOrEmail("");
-    setPassword("");
-  };
+  const userRoles = [
+    { id: "SHG", label: "SHG", icon: Users, description: "Self Help Group" },
+    {
+      id: "VO",
+      label: "VO",
+      icon: Building2,
+      description: "Village Organization",
+    },
+    {
+      id: "CLF",
+      label: "CLF",
+      icon: Globe,
+      description: "Cluster Level Federation",
+    },
+  ];
 
-  const onLogin = () => {
-    navigate(role.toLowerCase());
-  };
-  const onClose = () => {};
+  const adminRoles = [
+    {
+      id: "NIC",
+      label: "NIC",
+      icon: Shield,
+      description: "National Informatics Center",
+    },
+    {
+      id: "BMMU",
+      label: "BMMU",
+      icon: Building2,
+      description: "Block Mission Management Unit",
+    },
+    {
+      id: "DMMU",
+      label: "DMMU",
+      icon: Users,
+      description: "District Mission Management Unit",
+    },
+  ];
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleUserSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (roleType === "admin") {
-      const user = users.find((user) => user.email === idOrEmail);
-      if (!user) {
-        return toast({
-          title: "Invalid credentials",
-        });
-      }
-
-      if (user.password !== password) {
-        return toast({
-          title: "Invalid credentials",
-        });
-      }
-
-      if (user.role !== role) {
-        return toast({
-          title: "Access Denied",
-          description: "You don't have enough permissions",
-        });
-      }
-    } else {
-      const user = users.find((user) => user.id === idOrEmail);
-      if (!user) {
-        return toast({
-          title: "Invalid credentials",
-        });
-      }
-
-      if (user.password !== password) {
-        return toast({
-          title: "Invalid credentials",
-        });
-      }
-
-      if (user.role !== role) {
-        return toast({
-          title: "Access Denied",
-          description: "You don't have enough permissions",
-        });
-      }
+    const user = users.find((user) => user.id === userId);
+    if (!user) {
+      return toast({
+        title: "Invalid Credentials",
+        description:
+          "Please check your ID and password again before signing in",
+      });
     }
 
-    onLogin();
+    if (user.password !== password) {
+      return toast({
+        title: "Invalid Credentials",
+        description:
+          "Please check your ID and password again before signing in",
+      });
+    }
+
+    if (user.role !== userRole) {
+      return toast({
+        title: "Access Denied",
+        description: "You are not allowed to login as " + userRole,
+      });
+    }
+
+    navigate(user.role.toLowerCase());
   };
+
+  const handleAdminSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const user = users.find((user) => user.email === adminEmail);
+    if (!user) {
+      return toast({
+        title: "Invalid Credentials",
+        description:
+          "Please check your ID and password again before signing in",
+      });
+    }
+
+    if (user.password !== password) {
+      return toast({
+        title: "Invalid Credentials",
+        description:
+          "Please check your ID and password again before signing in",
+      });
+    }
+
+    if (user.role !== adminRole) {
+      return toast({
+        title: "Access Denied",
+        description: "You are not allowed to login as " + adminRole,
+      });
+    }
+
+    navigate(user.role.toLowerCase());
+  };
+
   return (
-    <main className="p-5 mx-4 my-5 bg-white rounded-md shadow-[0_1px_3px_rgba(0,0,0,0.1)]">
-      <div className="flex items-center justify-center min-h-0">
-        <form
-          onSubmit={handleLogin}
-          className="bg-white p-8 rounded-lg shadow-md w-full max-w-lg min-w-[350px] relative"
-        >
-          {onclose && (
-            <button
-              type="button"
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-700 text-2xl font-bold"
-              onClick={onClose}
-              aria-label="Close"
-            >
-              &times;
-            </button>
-          )}
-          <h2 className="text-2xl font-bold mb-6 text-center text-blue-600">
-            Login
-          </h2>
-          {/* Role Type Toggle */}
-          <div className="flex justify-center mb-6">
-            <button
-              type="button"
-              className={`px-4 py-2 rounded-l border border-r-0 font-semibold ${
-                roleType === "user"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-              onClick={() => handleRoleTypeToggle("user")}
-            >
-              User
-            </button>
-            <button
-              type="button"
-              className={`px-4 py-2 rounded-r border font-semibold ${
-                roleType === "admin"
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-              onClick={() => handleRoleTypeToggle("admin")}
-            >
-              Admin
-            </button>
-          </div>
-          {/* Credentials */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {roleType === "user" ? "ID" : "Email"}
-            </label>
-            <input
-              type={roleType === "user" ? "text" : "email"}
-              value={idOrEmail}
-              onChange={(e) => setIdOrEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder={
-                roleType === "user" ? "Enter your ID" : "Enter your email"
-              }
-              required
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
-              placeholder="Enter your password"
-              required
-            />
-          </div>
-          {/* Role Buttons */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Role
-            </label>
-            <div className="flex gap-3">
-              {(roleType === "user" ? userRoles : adminRoles).map((r) => (
-                <button
-                  type="button"
-                  key={r}
-                  className={`px-4 py-2 rounded font-semibold border ${
-                    role === r
-                      ? roleType === "user"
-                        ? "bg-blue-500 text-white"
-                        : "bg-green-600 text-white"
-                      : "bg-gray-100 text-gray-700"
-                  }`}
-                  onClick={() => setRole(r)}
-                >
-                  {r}
-                </button>
-              ))}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <Card className="shadow-xl border-0">
+          <CardHeader className="space-y-1 pb-4">
+            <CardTitle className="text-2xl text-center">Sign In</CardTitle>
+            <CardDescription className="text-center">
+              Choose your login type and enter your credentials
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="user" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
+                <TabsTrigger value="user" className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  User
+                </TabsTrigger>
+                <TabsTrigger value="admin" className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Admin
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="user" className="space-y-4">
+                <form onSubmit={handleUserSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="user-id">User ID</Label>
+                    <Input
+                      id="user-id"
+                      type="text"
+                      value={userId}
+                      onChange={(e) => setUserId(e.target.value)}
+                      placeholder="Enter your user ID"
+                      required
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="user-password">Password</Label>
+                    <Input
+                      id="user-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Select Role</Label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {userRoles.map((role) => {
+                        const Icon = role.icon;
+                        return (
+                          <Button
+                            key={role.id}
+                            type="button"
+                            variant={
+                              userRole === role.id ? "default" : "outline"
+                            }
+                            className={`h-auto p-3 justify-start ${
+                              userRole === role.id
+                                ? "bg-blue-600 hover:bg-blue-700"
+                                : "hover:bg-blue-50"
+                            }`}
+                            onClick={() => setUserRole(role.id)}
+                          >
+                            <div className="flex items-center gap-3 w-full">
+                              <Icon className="w-5 h-5" />
+                              <div className="text-left">
+                                <div className="font-semibold">
+                                  {role.label}
+                                </div>
+                                <div className="text-xs opacity-70">
+                                  {role.description}
+                                </div>
+                              </div>
+                              {userRole === role.id && (
+                                <Badge variant="secondary" className="ml-auto">
+                                  Selected
+                                </Badge>
+                              )}
+                            </div>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full h-11 bg-blue-600 hover:bg-blue-700"
+                    disabled={!userRole}
+                  >
+                    Sign In as User
+                  </Button>
+                </form>
+              </TabsContent>
+
+              <TabsContent value="admin" className="space-y-4">
+                <form onSubmit={handleAdminSubmit} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-email">Email</Label>
+                    <Input
+                      id="admin-email"
+                      type="email"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      required
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-password">Password</Label>
+                    <Input
+                      id="admin-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      required
+                      className="h-11"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Select Role</Label>
+                    <div className="grid grid-cols-1 gap-2">
+                      {adminRoles.map((role) => {
+                        const Icon = role.icon;
+                        return (
+                          <Button
+                            key={role.id}
+                            type="button"
+                            variant={
+                              adminRole === role.id ? "default" : "outline"
+                            }
+                            className={`h-auto p-3 justify-start ${
+                              adminRole === role.id
+                                ? "bg-blue-600 hover:bg-blue-700"
+                                : "hover:bg-blue-50"
+                            }`}
+                            onClick={() => setAdminRole(role.id)}
+                          >
+                            <div className="flex items-center gap-3 w-full">
+                              <Icon className="w-5 h-5" />
+                              <div className="text-left">
+                                <div className="font-semibold">
+                                  {role.label}
+                                </div>
+                                <div className="text-xs opacity-70">
+                                  {role.description}
+                                </div>
+                              </div>
+                              {adminRole === role.id && (
+                                <Badge variant="secondary" className="ml-auto">
+                                  Selected
+                                </Badge>
+                              )}
+                            </div>
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full h-11 bg-blue-600 hover:bg-blue-700"
+                    disabled={!adminRole}
+                  >
+                    Sign In as Admin
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
+
+            <div className="mt-6 text-center">
+              <a href="/" className="text-sm text-blue-600 hover:underline">
+                Forgot your password?
+              </a>
             </div>
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 font-semibold transition-colors"
-          >
-            Login
-          </button>
-        </form>
+          </CardContent>
+        </Card>
       </div>
-    </main>
+    </div>
   );
 }
