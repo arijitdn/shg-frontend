@@ -274,7 +274,8 @@ export default function VOApprovalPage() {
                     ₹{product.price / 100}
                   </div>
                   <Badge variant="outline" className="text-xs">
-                    {product.category}
+                    {product.category.charAt(0).toUpperCase() +
+                      product.category.slice(1)}
                   </Badge>
                 </div>
               </div>
@@ -405,7 +406,7 @@ export default function VOApprovalPage() {
                           htmlFor="recommendation"
                           className="text-sm font-medium"
                         >
-                          Remarks (optional)
+                          Remarks
                         </Label>
                         <Textarea
                           id="remarks"
@@ -420,11 +421,11 @@ export default function VOApprovalPage() {
                       <Button
                         variant="outline"
                         onClick={() => handleRecommend(product.id, "reject")}
-                        disabled={isRecommending}
+                        disabled={isRecommending || !remarks}
                         className="text-red-600 border-red-600 hover:bg-red-50"
                       >
                         <XCircle className="w-4 h-4 mr-2" />
-                        Reject
+                        {!remarks ? "Need remarks to reject" : "Reject"}
                       </Button>
                       <Button
                         onClick={() => handleRecommend(product.id, "approve")}

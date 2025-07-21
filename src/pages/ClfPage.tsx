@@ -66,24 +66,24 @@ interface Product {
   isRecommended?: boolean;
   isApproved?: boolean;
   isRejected?: boolean;
-  status: "draft" | "pending" | "approved" | "rejected";
+  status: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
   imageUrl: string;
   shgId: string;
   userId: string;
+  remarks?: string;
 }
 
 export default function CLFApprovalPage() {
   const [voProducts, setVoProducts] = useState<Product[]>([]);
   const [nfcProducts, setNfcProducts] = useState<Product[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [_selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [totalPrice, setTotalPrice] = useState(0);
-  const [approvalDialog, setApprovalDialog] = useState(false);
-  const [rejectionDialog, setRejectionDialog] = useState(false);
+  const [_approvalDialog, setApprovalDialog] = useState(false);
+  const [_rejectionDialog, setRejectionDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [remarks, setRemarks] = useState("");
 
   const fetchProducts = async () => {
     const { data } = await apiClient.get<Product[]>("/products");
@@ -104,12 +104,36 @@ export default function CLFApprovalPage() {
         data.filter((p: Product) => p.isApproved || p.isRejected).length
     );
 
-    setTotalPrice(data.reduce((sum, p) => sum + (p.price / 100) * p.stock, 0));
+    setTotalPrice(
+      [
+        ...data.filter(
+          (p: Product) => p.isRecommended && !p.isApproved && !p.isRejected
+        ),
+        ...data.filter(
+          (p: Product) => p.type === "nfc" && !p.isApproved && !p.isRejected
+        ),
+      ].reduce((sum, p) => sum + (p.price / 100) * p.stock, 0)
+    );
   };
 
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // useEffect(() => {
+  //   if (statusFilter === "all") {
+  //     fetchProducts();
+  //   } else {
+  //     const filteredVoProducts = voProducts.filter(
+  //       (p) => p.status.toLowerCase() === statusFilter.toLowerCase()
+  //     );
+  //     const filteredNfcProducts = nfcProducts.filter(
+  //       (p) => p.status.toLowerCase() === statusFilter.toLowerCase()
+  //     );
+  //     setVoProducts(filteredVoProducts);
+  //     setNfcProducts(filteredNfcProducts);
+  //   }
+  // }, [statusFilter, searchTerm]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -151,16 +175,37 @@ export default function CLFApprovalPage() {
     }
   };
 
-  const handleApproval = (productId: string, approved: boolean) => {
-    console.log(
-      `${
-        approved ? "Approved" : "Rejected"
-      } product ${productId} with remarks: ${remarks}`
-    );
+  const handleApproval = async (
+    productId: string,
+    approved: boolean,
+    remarks: string
+  ) => {
+    if (!approved) {
+      if (!remarks.trim()) {
+        alert("Please provide a reason for rejection.");
+        return;
+      }
+
+      await apiClient.patch(`/products/reject/${productId}`, {
+        reject: true,
+        rejectedBy: "CLF",
+        remarks: remarks.trim() || undefined,
+      });
+      setApprovalDialog(false);
+      setRejectionDialog(false);
+      setSelectedProduct(null);
+      window.location.reload();
+      return;
+    }
+
+    await apiClient.patch(`/products/approve/${productId}`, {
+      approve: true,
+      remarks: remarks.trim() || undefined,
+    });
     setApprovalDialog(false);
     setRejectionDialog(false);
-    setRemarks("");
     setSelectedProduct(null);
+    window.location.reload();
   };
 
   const ProductDetailsDialog = ({
@@ -177,7 +222,7 @@ export default function CLFApprovalPage() {
           View Details
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
@@ -196,7 +241,7 @@ export default function CLFApprovalPage() {
                 className="w-full h-48 object-cover rounded-lg"
               />
             </div>
-            <div className="flex flex-col justify-center gap-2">
+            <div className="flex flex-col gap-1">
               <div>
                 <Label className="text-sm font-medium text-gray-600">
                   Product Name
@@ -211,6 +256,21 @@ export default function CLFApprovalPage() {
                   {product.category.charAt(0).toUpperCase() +
                     product.category.slice(1)}
                 </p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-600">
+                  Submitted Date
+                </Label>
+                <p className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4" />
+                  {new Date(product.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-600">
+                  Status
+                </Label>
+                <div>{getStatusBadge(product.status)}</div>
               </div>
             </div>
           </div>
@@ -284,22 +344,13 @@ export default function CLFApprovalPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm font-medium text-gray-600">
-                Submitted Date
-              </Label>
-              <p className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                {new Date(product.createdAt).toLocaleDateString()}
-              </p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-gray-600">
-                Status
-              </Label>
-              <div>{getStatusBadge(product.status)}</div>
-            </div>
+          <div>
+            <Label className="text-sm font-medium text-gray-600">
+              Current Remarks
+            </Label>
+            <p className="text-sm bg-gray-50 p-3 rounded-md">
+              {product.remarks || "No remarks provided"}
+            </p>
           </div>
         </div>
       </DialogContent>
@@ -310,101 +361,139 @@ export default function CLFApprovalPage() {
     product,
     type,
   }: {
-    product: any;
+    product: Product;
     type: "vo" | "nfc";
-  }) => (
-    <div className="flex gap-2">
-      <ProductDetailsDialog product={product} type={type} />
+  }) => {
+    const [localRemarks, setLocalRemarks] = useState("");
+    const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
+    const [isRejectionDialogOpen, setIsRejectionDialogOpen] = useState(false);
 
-      <Dialog open={approvalDialog} onOpenChange={setApprovalDialog}>
-        <DialogTrigger asChild>
-          <Button
-            size="sm"
-            className="bg-green-600 hover:bg-green-700"
-            onClick={() => setSelectedProduct(product)}
-          >
-            <CheckCircle className="w-4 h-4 mr-1" />
-            Approve
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Approve Product</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to approve "{selectedProduct?.name}"?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div>
-              <Label htmlFor="approval-remarks">Approval Remarks</Label>
-              <Textarea
-                id="approval-remarks"
-                placeholder="Enter approval remarks (optional)"
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setApprovalDialog(false)}>
-              Cancel
-            </Button>
+    const handleApprove = () => {
+      handleApproval(product.id, true, localRemarks);
+      setIsApprovalDialogOpen(false);
+      setLocalRemarks("");
+    };
+
+    const handleReject = () => {
+      if (localRemarks.trim()) {
+        handleApproval(product.id, false, localRemarks);
+        setIsRejectionDialogOpen(false);
+        setLocalRemarks("");
+      }
+    };
+
+    return (
+      <div className="flex gap-2">
+        <ProductDetailsDialog product={product} type={type} />
+
+        {/* Approve Dialog */}
+        <Dialog
+          open={isApprovalDialogOpen}
+          onOpenChange={setIsApprovalDialogOpen}
+        >
+          <DialogTrigger asChild>
             <Button
+              size="sm"
               className="bg-green-600 hover:bg-green-700"
-              onClick={() => handleApproval(selectedProduct!.id, true)}
+              onClick={() => {
+                setLocalRemarks("");
+                setIsApprovalDialogOpen(true);
+              }}
             >
-              Confirm Approval
+              <CheckCircle className="w-4 h-4 mr-1" />
+              Approve
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Approve Product</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to approve "{product.name}"?
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div>
+                <Label htmlFor="approval-remarks">Approval Remarks</Label>
+                <Textarea
+                  id="approval-remarks"
+                  placeholder="Enter remarks (optional)"
+                  value={localRemarks}
+                  onChange={(e) => setLocalRemarks(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsApprovalDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="bg-green-600 hover:bg-green-700"
+                onClick={handleApprove}
+              >
+                Confirm Approval
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      <Dialog open={rejectionDialog} onOpenChange={setRejectionDialog}>
-        <DialogTrigger asChild>
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() => setSelectedProduct(product)}
-          >
-            <XCircle className="w-4 h-4 mr-1" />
-            Reject
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Product</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting "{selectedProduct?.name}".
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div>
+        {/* Reject Dialog */}
+        <Dialog
+          open={isRejectionDialogOpen}
+          onOpenChange={setIsRejectionDialogOpen}
+        >
+          <DialogTrigger asChild>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => {
+                setLocalRemarks("");
+                setIsRejectionDialogOpen(true);
+              }}
+            >
+              <XCircle className="w-4 h-4 mr-1" />
+              Reject
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Reject Product</DialogTitle>
+              <DialogDescription>
+                Please provide a reason for rejecting "{product.name}".
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
               <Label htmlFor="rejection-remarks">Rejection Reason *</Label>
               <Textarea
                 id="rejection-remarks"
                 placeholder="Enter reason for rejection"
-                value={remarks}
-                onChange={(e) => setRemarks(e.target.value)}
+                value={localRemarks}
+                onChange={(e) => setLocalRemarks(e.target.value)}
                 required
               />
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectionDialog(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => handleApproval(selectedProduct!.id, false)}
-              disabled={!remarks.trim()}
-            >
-              Confirm Rejection
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsRejectionDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!localRemarks.trim()}
+                onClick={handleReject}
+              >
+                Confirm Rejection
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">

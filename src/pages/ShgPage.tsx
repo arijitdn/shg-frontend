@@ -38,7 +38,6 @@ import { Textarea } from "../components/ui/textarea";
 import { useToast } from "../hooks/use-toast";
 import apiClient from "../lib/api";
 import { productCategories } from "../lib/categories";
-import { useLocation, useNavigate } from "react-router-dom";
 
 interface Product {
   id: string;
@@ -60,9 +59,6 @@ interface Product {
 }
 
 export default function SHGProductsPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -147,13 +143,6 @@ export default function SHGProductsPage() {
         },
       });
 
-      navigate(location.pathname, { replace: true });
-
-      toast({
-        title: "Product Created",
-        description: "Your product has been created successfully.",
-      });
-
       setNewProduct({
         name: "",
         category: "",
@@ -164,9 +153,13 @@ export default function SHGProductsPage() {
         imageUrl: "",
       });
       setIsCreateDialogOpen(false);
-      fetchProducts();
+      window.location.reload();
+      toast({
+        title: "Product Created",
+        description: "Your product has been created successfully.",
+      });
     } catch (error) {
-      navigate(location.pathname, { replace: true });
+      window.location.reload();
       toast({
         title: "Error",
         description: "Failed to upload product to server.",
@@ -203,8 +196,39 @@ export default function SHGProductsPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleUpdateProduct = () => {
+  const handleUpdateProduct = async () => {
     if (!selectedProduct) return;
+
+    const formData = new FormData();
+    const fileInput = document.getElementById("edit-img") as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+    if (file) {
+      formData.append("image", file);
+    }
+
+    formData.append("name", selectedProduct.name);
+    formData.append("category", selectedProduct.category);
+    formData.append("description", selectedProduct.description);
+    formData.append(
+      "price",
+      Math.round(
+        parseFloat((selectedProduct.price / 100).toString()) * 100
+      ).toString()
+    );
+    formData.append("stock", selectedProduct.stock.toString());
+    formData.append("type", selectedProduct.type.toLowerCase());
+    formData.append("userId", selectedProduct.userId);
+    formData.append("shgId", selectedProduct.shgId);
+
+    if (selectedProduct.remarks) {
+      formData.append("remarks", selectedProduct.remarks);
+    }
+
+    await apiClient.patch(`/products/update/${selectedProduct.id}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
     const updatedProducts = products.map((product) =>
       product.id === selectedProduct.id ? selectedProduct : product
@@ -399,7 +423,9 @@ export default function SHGProductsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recommended</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Approval (Recommended)
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
@@ -642,7 +668,7 @@ export default function SHGProductsPage() {
 
                                 <div>
                                   <Label className="text-sm font-medium">
-                                    Remarks (if any)
+                                    Remarks
                                   </Label>
                                   <div className="mt-2 grid grid-cols-2 gap-2">
                                     {product.remarks ? (
@@ -672,7 +698,7 @@ export default function SHGProductsPage() {
 
       {/* Edit Product Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl overflow-y-auto max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
             <DialogDescription>
