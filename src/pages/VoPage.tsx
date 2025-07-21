@@ -37,7 +37,6 @@ import {
 import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
-import { useLocation, useNavigate } from "react-router-dom";
 import apiClient from "../lib/api";
 
 interface Product {
@@ -59,9 +58,6 @@ interface Product {
 }
 
 export default function VOApprovalPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
