@@ -39,6 +39,7 @@ import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../lib/api";
 
 interface Product {
   id: string;
@@ -62,31 +63,19 @@ export default function VOApprovalPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [_selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [recommendation, setRecommendation] = useState("");
   const [isRecommending, setIsRecommending] = useState(false);
 
   const fetchProducts = async () => {
-    const { data: productsData }: { data: Product[] } = await axios.get(
-      "http://localhost:3000/api/products"
+    const { data: productsData }: { data: Product[] } = await apiClient.get(
+      "/products"
     );
     setProducts(productsData);
   };
 
   const navigate = useNavigate();
-
   const filteredProducts = products.filter((product) => {
-    if (
-      !product ||
-      !product.name ||
-      !product.type ||
-      !product.status ||
-      !product.category
-    ) {
-      console.warn("Product missing required fields:", product);
-      return false;
-    }
-
     const matchesSearch = product.name
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
@@ -95,9 +84,10 @@ export default function VOApprovalPage() {
       categoryFilter === "all" || product.category === categoryFilter;
     const isSingleType = product.type === "single";
     const isPending =
-      product.isRecommended === false &&
-      product.isApproved === false &&
-      product.isRejected === false;
+      (product.isApproved === false || product.isApproved === undefined) &&
+      (product.isRecommended === false ||
+        product.isRecommended === undefined) &&
+      (product.isRejected === false || product.isRejected === undefined);
 
     return matchesSearch && matchesCategory && isSingleType && isPending;
   });
@@ -184,21 +174,23 @@ export default function VOApprovalPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Pending Reviews
+              Total Products
             </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{filteredProducts.length}</div>
+            <div className="text-2xl font-bold">{products.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total SHGs</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Reviews
+            </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1 (mock)</div>
+            <div className="text-2xl font-bold">{filteredProducts.length}</div>
           </CardContent>
         </Card>
         <Card>

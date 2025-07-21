@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, Search, Edit, Send, Eye, Filter } from "lucide-react";
+import { Plus, Search, Edit, Eye, Filter } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import {
@@ -38,6 +38,7 @@ import { Textarea } from "../components/ui/textarea";
 import { useToast } from "../hooks/use-toast";
 import apiClient from "../lib/api";
 import { productCategories } from "../lib/categories";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface Product {
   id: string;
@@ -50,13 +51,17 @@ interface Product {
   isRecommended?: boolean;
   isApproved?: boolean;
   isRejected?: boolean;
-  status: "draft" | "pending" | "approved" | "rejected";
+  status: "PENDING" | "APPROVED" | "REJECTED";
   createdAt: string;
-  images?: string[];
   imageUrl: string;
+  shgId: string;
+  userId: string;
 }
 
 export default function SHGProductsPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -94,11 +99,11 @@ export default function SHGProductsPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "approved":
+      case "APPROVED":
         return "bg-green-100 text-green-800";
-      case "pending":
+      case "PENDING":
         return "bg-yellow-100 text-yellow-800";
-      case "rejected":
+      case "REJECTED":
         return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -125,7 +130,10 @@ export default function SHGProductsPage() {
     formData.append("name", newProduct.name);
     formData.append("category", newProduct.category);
     formData.append("description", newProduct.description);
-    formData.append("price", (parseFloat(newProduct.price) * 100).toString());
+    formData.append(
+      "price",
+      Math.round(parseFloat(newProduct.price) * 100).toString()
+    );
     formData.append("stock", newProduct.stock);
     formData.append("type", newProduct.type.toLowerCase());
     formData.append("userId", "user01");
@@ -137,6 +145,8 @@ export default function SHGProductsPage() {
           "Content-Type": "multipart/form-data",
         },
       });
+
+      navigate(location.pathname, { replace: true });
 
       toast({
         title: "Product Created",
@@ -153,9 +163,9 @@ export default function SHGProductsPage() {
         imageUrl: "",
       });
       setIsCreateDialogOpen(false);
-      fetchProducts(); // Optionally refresh data
+      fetchProducts();
     } catch (error) {
-      console.error("Upload failed", error);
+      navigate(location.pathname, { replace: true });
       toast({
         title: "Error",
         description: "Failed to upload product to server.",
@@ -204,19 +214,6 @@ export default function SHGProductsPage() {
     toast({
       title: "Product Updated",
       description: "Product details have been updated successfully.",
-    });
-  };
-
-  const handleSendForApproval = (productId: string) => {
-    const updatedProducts = products.map((product) =>
-      product.id === productId
-        ? { ...product, status: "pending" as const }
-        : product
-    );
-    setProducts(updatedProducts);
-    toast({
-      title: "Sent for Approval",
-      description: "Product has been sent to marketplace for approval.",
     });
   };
 
@@ -536,18 +533,113 @@ export default function SHGProductsPage() {
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        {product.status === "draft" && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleSendForApproval(product.id)}
-                          >
-                            <Send className="w-4 h-4" />
-                          </Button>
-                        )}
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedProduct(product)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>{product.name}</DialogTitle>
+                              <DialogDescription>
+                                Product details
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <img
+                                    src={product.imageUrl || "/placeholder.svg"}
+                                    alt={product.name}
+                                    className="w-full h-48 object-cover rounded-lg"
+                                  />
+                                </div>
+                                <div className="space-y-3">
+                                  <div>
+                                    <Label className="text-sm font-medium">
+                                      Price
+                                    </Label>
+                                    <p className="text-2xl font-bold">
+                                      ₹{product.price / 100}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <Label className="text-sm font-medium">
+                                      Category
+                                    </Label>
+                                    <p>
+                                      {product.category
+                                        .charAt(0)
+                                        .toUpperCase() +
+                                        product.category.slice(1)}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <Label className="text-sm font-medium">
+                                      Status
+                                    </Label>
+                                    <div className="mt-1">
+                                      {product.status.charAt(0).toUpperCase() +
+                                        product.status.slice(1).toLowerCase()}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium">
+                                  Description
+                                </Label>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {product.description}
+                                </p>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <Label className="text-sm font-medium">
+                                    SHG Information
+                                  </Label>
+                                  <div className="mt-2 space-y-1">
+                                    <p className="text-sm">
+                                      <strong>Name:</strong> Mock SHG
+                                    </p>
+                                    <p className="text-sm">
+                                      <strong>ID:</strong> {product.shgId}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div>
+                                  <Label className="text-sm font-medium">
+                                    Member Information
+                                  </Label>
+                                  <div className="mt-2 space-y-1">
+                                    <p className="text-sm">
+                                      <strong>Name:</strong> Mock User
+                                    </p>
+                                    <p className="text-sm">
+                                      <strong>ID:</strong> {product.userId}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div>
+                                <Label className="text-sm font-medium">
+                                  Product Specifications
+                                </Label>
+                                <div className="mt-2 grid grid-cols-2 gap-2">
+                                  Mock Data
+                                </div>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -569,6 +661,47 @@ export default function SHGProductsPage() {
           </DialogHeader>
           {selectedProduct && (
             <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="img">Product Image</Label>
+                <Input
+                  id="edit-img"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    const MAX_SIZE_MB = 10;
+                    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+
+                    if (file.size > MAX_SIZE_BYTES) {
+                      toast({
+                        title: "Image too large",
+                        description: `Please upload an image smaller than ${MAX_SIZE_MB} MB.`,
+                        variant: "destructive",
+                      });
+                      return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      setSelectedProduct((prev) =>
+                        prev
+                          ? { ...prev, imageUrl: ev.target?.result as string }
+                          : prev
+                      );
+                    };
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                {selectedProduct.imageUrl && (
+                  <img
+                    src={selectedProduct.imageUrl}
+                    alt="preview"
+                    className="w-32 h-32 object-cover rounded-md mt-2 border"
+                  />
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-name">Product Name</Label>
