@@ -37,6 +37,7 @@ import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { useToast } from "../hooks/use-toast";
 import apiClient from "../lib/api";
+import { productCategories } from "../lib/categories";
 
 interface Product {
   id: string;
@@ -99,8 +100,6 @@ export default function SHGProductsPage() {
         return "bg-yellow-100 text-yellow-800";
       case "rejected":
         return "bg-red-100 text-red-800";
-      case "draft":
-        return "bg-gray-100 text-gray-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -224,7 +223,7 @@ export default function SHGProductsPage() {
   const stats = {
     total: products.length,
     approved: products.filter((p) => p.isApproved).length,
-    pending: products.filter((p) => p.isRecommended).length,
+    recommended: products.filter((p) => p.isRecommended).length,
     rejected: products.filter((p) => p.isRejected).length,
   };
 
@@ -297,13 +296,11 @@ export default function SHGProductsPage() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="textiles">Textiles</SelectItem>
-                      <SelectItem value="food_and_spices">
-                        Food & Spices
-                      </SelectItem>
-                      <SelectItem value="handicrafts">Handicrafts</SelectItem>
-                      <SelectItem value="jewelry">Jewelry</SelectItem>
-                      <SelectItem value="home_decor">Home Decor</SelectItem>
+                      {productCategories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -349,7 +346,7 @@ export default function SHGProductsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="shgName">Product Type</Label>
+                  <Label htmlFor="shgType">Product Type</Label>
                   <Select
                     value={newProduct.type}
                     onValueChange={(value) =>
@@ -361,7 +358,7 @@ export default function SHGProductsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="single">Single</SelectItem>
-                      <SelectItem value="NFC">NFC</SelectItem>
+                      <SelectItem value="nfc">NFC</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -404,13 +401,11 @@ export default function SHGProductsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Pending Approval
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Recommended</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {stats.pending}
+              {stats.recommended}
             </div>
           </CardContent>
         </Card>
@@ -454,10 +449,10 @@ export default function SHGProductsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="RECOMMENDED">Recommended</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
               </SelectContent>
             </Select>
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -466,11 +461,11 @@ export default function SHGProductsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="textiles">Textiles</SelectItem>
-                <SelectItem value="food_and_spices">Food & Spices</SelectItem>
-                <SelectItem value="handicrafts">Handicrafts</SelectItem>
-                <SelectItem value="jewelry">Jewelry</SelectItem>
-                <SelectItem value="home_decor">Home Decor</SelectItem>
+                {productCategories.map((categories) => (
+                  <SelectItem key={categories.value} value={categories.value}>
+                    {categories.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -524,7 +519,11 @@ export default function SHGProductsPage() {
                           product.status.slice(1)}
                       </Badge>
                     </TableCell>
-                    <TableCell>{product.createdAt}</TableCell>
+                    <TableCell>
+                      {new Date(
+                        product.createdAt.toString()
+                      ).toLocaleDateString()}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -599,13 +598,11 @@ export default function SHGProductsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="textiles">Textiles</SelectItem>
-                      <SelectItem value="food_and_spices">
-                        Food & Spices
-                      </SelectItem>
-                      <SelectItem value="handicrafts">Handicrafts</SelectItem>
-                      <SelectItem value="jewelry">Jewelry</SelectItem>
-                      <SelectItem value="home_decor">Home Decor</SelectItem>
+                      {productCategories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -634,7 +631,9 @@ export default function SHGProductsPage() {
                     onChange={(e) =>
                       setSelectedProduct({
                         ...selectedProduct,
-                        price: Number.parseFloat(e.target.value),
+                        price: Math.round(
+                          Number.parseFloat(e.target.value) * 100
+                        ),
                       })
                     }
                   />
