@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Search,
   Filter,
@@ -37,115 +37,67 @@ import {
 import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
-const mockProducts = [
-  {
-    id: "PRD001",
-    name: "Handwoven Cotton Saree",
-    description:
-      "Traditional handwoven cotton saree with intricate border designs",
-    category: "Textiles",
-    price: 2500,
-    shgName: "Mahila Shakti SHG",
-    shgId: "SHG001",
-    memberName: "Priya Sharma",
-    memberId: "MEM001",
-    submittedDate: "2024-01-15",
-    status: "pending",
-    type: "single",
-    images: ["/product-placeholder.png"],
-    specifications: {
-      material: "100% Cotton",
-      dimensions: "6.5m x 1.2m",
-      weight: "500g",
-      colors: ["Red", "Gold"],
-    },
-  },
-  {
-    id: "PRD002",
-    name: "Organic Turmeric Powder",
-    description: "Pure organic turmeric powder sourced from local farms",
-    category: "Food Products",
-    price: 150,
-    shgName: "Krishi Mahila Mandal",
-    shgId: "SHG002",
-    memberName: "Sunita Devi",
-    memberId: "MEM002",
-    submittedDate: "2024-01-14",
-    status: "pending",
-    type: "single",
-    images: ["/product-placeholder.png"],
-    specifications: {
-      weight: "500g",
-      organic: "Yes",
-      packaging: "Sealed pouch",
-      shelfLife: "24 months",
-    },
-  },
-  {
-    id: "PRD003",
-    name: "Bamboo Handicraft Set",
-    description:
-      "Eco-friendly bamboo handicraft items including baskets and decorative pieces",
-    category: "Handicrafts",
-    price: 800,
-    shgName: "Eco Craft Women Group",
-    shgId: "SHG003",
-    memberName: "Meera Patel",
-    memberId: "MEM003",
-    submittedDate: "2024-01-13",
-    status: "pending",
-    type: "single",
-    images: ["/product-placeholder.png"],
-    specifications: {
-      material: "Natural Bamboo",
-      items: "3 pieces",
-      finish: "Natural lacquer",
-      dimensions: "Various sizes",
-    },
-  },
-  {
-    id: "PRD004",
-    name: "Herbal Soap Collection",
-    description: "Natural herbal soaps made with traditional ingredients",
-    category: "Personal Care",
-    price: 300,
-    shgName: "Ayurveda Women Collective",
-    shgId: "SHG004",
-    memberName: "Kavita Singh",
-    memberId: "MEM004",
-    submittedDate: "2024-01-12",
-    status: "pending",
-    type: "single",
-    images: ["/product-placeholder.png"],
-    specifications: {
-      quantity: "4 soaps",
-      weight: "100g each",
-      ingredients: "Neem, Turmeric, Aloe Vera",
-      packaging: "Eco-friendly wrap",
-    },
-  },
-];
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  price: number;
+  stock: number;
+  type: string;
+  isRecommended?: boolean;
+  isApproved?: boolean;
+  isRejected?: boolean;
+  status: "draft" | "pending" | "approved" | "rejected";
+  createdAt: string;
+  imageUrl: string;
+  shgId: string;
+  userId: string;
+}
 
 export default function VOApprovalPage() {
-  const [products, setProducts] = useState(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [selectedProduct, setSelectedProduct] = useState<
-    (typeof mockProducts)[0] | null
-  >(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [recommendation, setRecommendation] = useState("");
   const [isRecommending, setIsRecommending] = useState(false);
 
+  const fetchProducts = async () => {
+    const { data: productsData }: { data: Product[] } = await axios.get(
+      "http://localhost:3000/api/products"
+    );
+    setProducts(productsData);
+  };
+
+  const navigate = useNavigate();
+
   const filteredProducts = products.filter((product) => {
-    const matchesSearch =
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.shgName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.memberName.toLowerCase().includes(searchTerm.toLowerCase());
+    if (
+      !product ||
+      !product.name ||
+      !product.type ||
+      !product.status ||
+      !product.category
+    ) {
+      console.warn("Product missing required fields:", product);
+      return false;
+    }
+
+    const matchesSearch = product.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+
     const matchesCategory =
       categoryFilter === "all" || product.category === categoryFilter;
     const isSingleType = product.type === "single";
-    const isPending = product.status === "pending";
+    const isPending =
+      product.isRecommended === false &&
+      product.isApproved === false &&
+      product.isRejected === false;
 
     return matchesSearch && matchesCategory && isSingleType && isPending;
   });
@@ -158,23 +110,26 @@ export default function VOApprovalPage() {
   ) => {
     setIsRecommending(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    setProducts((prev) =>
-      prev.map((product) =>
-        product.id === productId
-          ? {
-              ...product,
-              status: action === "approve" ? "recommended" : "rejected",
-            }
-          : product
-      )
-    );
+    if (action === "reject") {
+      await axios.patch(
+        `http://localhost:3000/api/products/${productId}/vo-recommendation`,
+        {
+          recommend: false,
+        }
+      );
+    } else {
+      await axios.patch(
+        `http://localhost:3000/api/products/${productId}/vo-recommendation`,
+        {
+          recommend: true,
+        }
+      );
+    }
 
     setIsRecommending(false);
     setSelectedProduct(null);
     setRecommendation("");
+    navigate("/vo");
   };
 
   const getStatusBadge = (status: string) => {
@@ -208,6 +163,10 @@ export default function VOApprovalPage() {
     }
   };
 
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
@@ -239,9 +198,7 @@ export default function VOApprovalPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {new Set(products.map((p) => p.shgId)).size}
-            </div>
+            <div className="text-2xl font-bold">1 (mock)</div>
           </CardContent>
         </Card>
         <Card>
@@ -251,7 +208,7 @@ export default function VOApprovalPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {products.filter((p) => p.status === "recommended").length}
+              {products.filter((p) => p.isRecommended).length}
             </div>
           </CardContent>
         </Card>
@@ -307,7 +264,7 @@ export default function VOApprovalPage() {
           <Card key={product.id} className="overflow-hidden">
             <div className="aspect-square relative">
               <img
-                src={product.images[0] || "/placeholder.svg"}
+                src={product.imageUrl || "/placeholder.svg"}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
@@ -324,7 +281,9 @@ export default function VOApprovalPage() {
                   </CardDescription>
                 </div>
                 <div className="text-right">
-                  <div className="text-lg font-bold">₹{product.price}</div>
+                  <div className="text-lg font-bold">
+                    ₹{product.price / 100}
+                  </div>
                   <Badge variant="outline" className="text-xs">
                     {product.category}
                   </Badge>
@@ -335,16 +294,16 @@ export default function VOApprovalPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">SHG:</span>
-                  <span className="font-medium">{product.shgName}</span>
+                  <span className="font-medium">{product.shgId}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Member:</span>
-                  <span className="font-medium">{product.memberName}</span>
+                  <span className="font-medium">{product.userId}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Submitted:</span>
                   <span>
-                    {new Date(product.submittedDate).toLocaleDateString()}
+                    {new Date(product.createdAt).toLocaleDateString()}
                   </span>
                 </div>
               </div>
@@ -373,7 +332,7 @@ export default function VOApprovalPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <img
-                            src={product.images[0] || "/placeholder.svg"}
+                            src={product.imageUrl || "/placeholder.svg"}
                             alt={product.name}
                             className="w-full h-48 object-cover rounded-lg"
                           />
@@ -382,14 +341,17 @@ export default function VOApprovalPage() {
                           <div>
                             <Label className="text-sm font-medium">Price</Label>
                             <p className="text-2xl font-bold">
-                              ₹{product.price}
+                              ₹{product.price / 100}
                             </p>
                           </div>
                           <div>
                             <Label className="text-sm font-medium">
                               Category
                             </Label>
-                            <p>{product.category}</p>
+                            <p>
+                              {product.category.charAt(0).toUpperCase() +
+                                product.category.slice(1)}
+                            </p>
                           </div>
                           <div>
                             <Label className="text-sm font-medium">
@@ -418,7 +380,7 @@ export default function VOApprovalPage() {
                           </Label>
                           <div className="mt-2 space-y-1">
                             <p className="text-sm">
-                              <strong>Name:</strong> {product.shgName}
+                              <strong>Name:</strong> Mock SHG
                             </p>
                             <p className="text-sm">
                               <strong>ID:</strong> {product.shgId}
@@ -431,10 +393,10 @@ export default function VOApprovalPage() {
                           </Label>
                           <div className="mt-2 space-y-1">
                             <p className="text-sm">
-                              <strong>Name:</strong> {product.memberName}
+                              <strong>Name:</strong> Mock User
                             </p>
                             <p className="text-sm">
-                              <strong>ID:</strong> {product.memberId}
+                              <strong>ID:</strong> {product.userId}
                             </p>
                           </div>
                         </div>
@@ -445,16 +407,7 @@ export default function VOApprovalPage() {
                           Product Specifications
                         </Label>
                         <div className="mt-2 grid grid-cols-2 gap-2">
-                          {Object.entries(product.specifications).map(
-                            ([key, value]) => (
-                              <div key={key} className="text-sm">
-                                <strong className="capitalize">{key}:</strong>{" "}
-                                {Array.isArray(value)
-                                  ? value.join(", ")
-                                  : value}
-                              </div>
-                            )
-                          )}
+                          Mock Data
                         </div>
                       </div>
 

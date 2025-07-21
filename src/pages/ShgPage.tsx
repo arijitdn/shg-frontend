@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Search, Edit, Send, Eye, Filter } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -36,6 +36,7 @@ import {
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import { useToast } from "../hooks/use-toast";
+import apiClient from "../lib/api";
 
 interface Product {
   id: string;
@@ -45,50 +46,17 @@ interface Product {
   price: number;
   stock: number;
   type: string;
+  isRecommended?: boolean;
+  isApproved?: boolean;
+  isRejected?: boolean;
   status: "draft" | "pending" | "approved" | "rejected";
   createdAt: string;
   images?: string[];
+  imageUrl: string;
 }
 
-const mockProducts: Product[] = [
-  {
-    id: "1",
-    name: "Handwoven Cotton Saree",
-    category: "Textiles",
-    description: "Beautiful handwoven cotton saree with traditional patterns",
-    price: 2500,
-    stock: 15,
-    type: "Mahila Udyog SHG",
-    status: "approved",
-    createdAt: "2024-01-15",
-  },
-  {
-    id: "2",
-    name: "Organic Turmeric Powder",
-    category: "Food & Spices",
-    description: "Pure organic turmeric powder, naturally processed",
-    price: 150,
-    stock: 50,
-    type: "Krishi Mahila SHG",
-    status: "pending",
-    createdAt: "2024-01-20",
-  },
-  {
-    id: "3",
-    name: "Bamboo Handicrafts Set",
-    category: "Handicrafts",
-    description:
-      "Eco-friendly bamboo handicrafts including baskets and decorative items",
-    price: 800,
-    stock: 25,
-    type: "Eco Craft SHG",
-    status: "draft",
-    createdAt: "2024-01-22",
-  },
-];
-
 export default function SHGProductsPage() {
-  const [products, setProducts] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -104,8 +72,13 @@ export default function SHGProductsPage() {
     price: "",
     stock: "",
     type: "",
-    images: [],
+    imageUrl: "",
   });
+
+  async function fetchProducts() {
+    const products = await apiClient.get("/products");
+    setProducts(products.data);
+  }
 
   const filteredProducts = products.filter((product) => {
     const matchesSearch =
@@ -133,35 +106,91 @@ export default function SHGProductsPage() {
     }
   };
 
-  const handleCreateProduct = () => {
-    const product: Product = {
-      id: Date.now().toString(),
-      name: newProduct.name,
-      category: newProduct.category,
-      description: newProduct.description,
-      price: Number.parseFloat(newProduct.price),
-      stock: Number.parseInt(newProduct.stock),
-      type: newProduct.type,
-      status: "draft",
-      createdAt: new Date().toISOString().split("T")[0],
-      images: ["/placeholder.svg?height=200&width=200"],
-    };
+  const handleCreateProduct = async () => {
+    const formData = new FormData();
 
-    setProducts([...products, product]);
-    setNewProduct({
-      name: "",
-      category: "",
-      description: "",
-      price: "",
-      stock: "",
-      type: "",
-      images: [],
-    });
-    setIsCreateDialogOpen(false);
-    toast({
-      title: "Product Created",
-      description: "Your product has been created successfully.",
-    });
+    const fileInput = document.getElementById("img") as HTMLInputElement;
+    const file = fileInput?.files?.[0];
+
+    if (!file) {
+      toast({
+        title: "Image is missing",
+        description: "Please select an image before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    formData.append("image", file);
+
+    formData.append("name", newProduct.name);
+    formData.append("category", newProduct.category);
+    formData.append("description", newProduct.description);
+    formData.append("price", (parseFloat(newProduct.price) * 100).toString());
+    formData.append("stock", newProduct.stock);
+    formData.append("type", newProduct.type.toLowerCase());
+    formData.append("userId", "user01");
+    formData.append("shgId", "shg01");
+
+    try {
+      await apiClient.post("/products/create", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      toast({
+        title: "Product Created",
+        description: "Your product has been created successfully.",
+      });
+
+      setNewProduct({
+        name: "",
+        category: "",
+        description: "",
+        price: "",
+        stock: "",
+        type: "",
+        imageUrl: "",
+      });
+      setIsCreateDialogOpen(false);
+      fetchProducts(); // Optionally refresh data
+    } catch (error) {
+      console.error("Upload failed", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload product to server.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const MAX_SIZE_MB = 10;
+    const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+
+    if (file.size > MAX_SIZE_BYTES) {
+      toast({
+        title: "Image too large",
+        description: `Please upload an image smaller than ${MAX_SIZE_MB} MB.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setNewProduct((prev) => ({
+        ...prev,
+        imageUrl: e.target?.result as string,
+      }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleUpdateProduct = () => {
@@ -194,10 +223,14 @@ export default function SHGProductsPage() {
 
   const stats = {
     total: products.length,
-    approved: products.filter((p) => p.status === "approved").length,
-    pending: products.filter((p) => p.status === "pending").length,
-    draft: products.filter((p) => p.status === "draft").length,
+    approved: products.filter((p) => p.isApproved).length,
+    pending: products.filter((p) => p.isRecommended).length,
+    rejected: products.filter((p) => p.isRejected).length,
   };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -224,6 +257,22 @@ export default function SHGProductsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="img">Product Image</Label>
+                <Input
+                  id="img"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                />
+                {newProduct.imageUrl && (
+                  <img
+                    src={newProduct.imageUrl}
+                    alt="preview"
+                    className="w-32 h-32 object-cover rounded-md mt-2 border"
+                  />
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Product Name</Label>
@@ -248,13 +297,13 @@ export default function SHGProductsPage() {
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Textiles">Textiles</SelectItem>
-                      <SelectItem value="Food & Spices">
+                      <SelectItem value="textiles">Textiles</SelectItem>
+                      <SelectItem value="food_and_spices">
                         Food & Spices
                       </SelectItem>
-                      <SelectItem value="Handicrafts">Handicrafts</SelectItem>
-                      <SelectItem value="Jewelry">Jewelry</SelectItem>
-                      <SelectItem value="Home Decor">Home Decor</SelectItem>
+                      <SelectItem value="handicrafts">Handicrafts</SelectItem>
+                      <SelectItem value="jewelry">Jewelry</SelectItem>
+                      <SelectItem value="home_decor">Home Decor</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -367,11 +416,11 @@ export default function SHGProductsPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Drafts</CardTitle>
+            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-gray-600">
-              {stats.draft}
+            <div className="text-2xl font-bold text-red-600">
+              {stats.rejected}
             </div>
           </CardContent>
         </Card>
@@ -417,11 +466,11 @@ export default function SHGProductsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="Textiles">Textiles</SelectItem>
-                <SelectItem value="Food & Spices">Food & Spices</SelectItem>
-                <SelectItem value="Handicrafts">Handicrafts</SelectItem>
-                <SelectItem value="Jewelry">Jewelry</SelectItem>
-                <SelectItem value="Home Decor">Home Decor</SelectItem>
+                <SelectItem value="textiles">Textiles</SelectItem>
+                <SelectItem value="food_and_spices">Food & Spices</SelectItem>
+                <SelectItem value="handicrafts">Handicrafts</SelectItem>
+                <SelectItem value="jewelry">Jewelry</SelectItem>
+                <SelectItem value="home_decor">Home Decor</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -448,7 +497,8 @@ export default function SHGProductsPage() {
                       <div className="flex items-center gap-3">
                         <img
                           src={
-                            product?.images?.[0] || "/product-placeholder.png"
+                            product.imageUrl ||
+                            "/placeholder.svg?height=200&width=200"
                           }
                           alt={product.name}
                           className="w-10 h-10 rounded-md object-cover"
@@ -461,9 +511,12 @@ export default function SHGProductsPage() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell>{product.category}</TableCell>
-                    <TableCell>{product.type}</TableCell>
-                    <TableCell>₹{product.price}</TableCell>
+                    <TableCell>
+                      {product.category.charAt(0).toUpperCase() +
+                        product.category.slice(1)}
+                    </TableCell>
+                    <TableCell>{product.type.toUpperCase()}</TableCell>
+                    <TableCell>₹{product.price / 100}</TableCell>
                     <TableCell>{product.stock}</TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(product.status)}>
@@ -546,13 +599,13 @@ export default function SHGProductsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Textiles">Textiles</SelectItem>
-                      <SelectItem value="Food & Spices">
+                      <SelectItem value="textiles">Textiles</SelectItem>
+                      <SelectItem value="food_and_spices">
                         Food & Spices
                       </SelectItem>
-                      <SelectItem value="Handicrafts">Handicrafts</SelectItem>
-                      <SelectItem value="Jewelry">Jewelry</SelectItem>
-                      <SelectItem value="Home Decor">Home Decor</SelectItem>
+                      <SelectItem value="handicrafts">Handicrafts</SelectItem>
+                      <SelectItem value="jewelry">Jewelry</SelectItem>
+                      <SelectItem value="home_decor">Home Decor</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -577,7 +630,7 @@ export default function SHGProductsPage() {
                   <Input
                     id="edit-price"
                     type="number"
-                    value={selectedProduct.price}
+                    value={selectedProduct.price / 100}
                     onChange={(e) =>
                       setSelectedProduct({
                         ...selectedProduct,
@@ -601,16 +654,11 @@ export default function SHGProductsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-shgName">SHG Name</Label>
+                  <Label htmlFor="edit-productType">Product Type</Label>
                   <Input
-                    id="edit-shgName"
-                    value={selectedProduct.type}
-                    onChange={(e) =>
-                      setSelectedProduct({
-                        ...selectedProduct,
-                        type: e.target.value,
-                      })
-                    }
+                    id="edit-productType"
+                    disabled
+                    value={selectedProduct.type.toUpperCase()}
                   />
                 </div>
               </div>

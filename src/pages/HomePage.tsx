@@ -23,7 +23,7 @@ import { users } from "../lib/users";
 import { useToast } from "../hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 
-export default function LoginPage() {
+export default function HomePage() {
   const [userId, setUserId] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [userRole, setUserRole] = useState("");
@@ -130,8 +130,8 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="shadow-xl border-0">
+      <div className="flex justify-center w-full max-w-3xl">
+        <Card className="shadow-xl border-0 w-screen">
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-2xl text-center">Sign In</CardTitle>
             <CardDescription className="text-center">
@@ -153,70 +153,79 @@ export default function LoginPage() {
 
               <TabsContent value="user" className="space-y-4">
                 <form onSubmit={handleUserSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="user-id">User ID</Label>
-                    <Input
-                      id="user-id"
-                      type="text"
-                      value={userId}
-                      onChange={(e) => setUserId(e.target.value)}
-                      placeholder="Enter your user ID"
-                      required
-                      className="h-11"
-                    />
-                  </div>
+                  <div className="flex justify-between gap-10">
+                    <div className="w-full flex flex-col justify-center">
+                      <div className="space-y-2">
+                        <Label htmlFor="user-id">User ID</Label>
+                        <Input
+                          id="user-id"
+                          type="text"
+                          value={userId}
+                          onChange={(e) => setUserId(e.target.value)}
+                          placeholder="Enter your user ID"
+                          required
+                          className="h-11"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="user-password">Password</Label>
-                    <Input
-                      id="user-password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      required
-                      className="h-11"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="user-password">Password</Label>
+                        <Input
+                          id="user-password"
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Enter your password"
+                          required
+                          className="h-11"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="space-y-3">
-                    <Label>Select Role</Label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {userRoles.map((role) => {
-                        const Icon = role.icon;
-                        return (
-                          <Button
-                            key={role.id}
-                            type="button"
-                            variant={
-                              userRole === role.id ? "default" : "outline"
-                            }
-                            className={`h-auto p-3 justify-start ${
-                              userRole === role.id
-                                ? "bg-blue-600 hover:bg-blue-700"
-                                : "hover:bg-blue-50"
-                            }`}
-                            onClick={() => setUserRole(role.id)}
-                          >
-                            <div className="flex items-center gap-3 w-full">
-                              <Icon className="w-5 h-5" />
-                              <div className="text-left">
-                                <div className="font-semibold">
-                                  {role.label}
+                    <div className="space-y-3 w-full bg-gray-100 px-10 py-3">
+                      <Label>Select Role</Label>
+                      <div className="grid grid-cols-1 gap-2">
+                        {userRoles.map((role) => {
+                          const Icon = role.icon;
+                          return (
+                            <Button
+                              key={role.id}
+                              type="button"
+                              variant={
+                                userRole === role.id ? "default" : "outline"
+                              }
+                              className={`h-auto p-3 justify-start ${
+                                userRole === role.id
+                                  ? "bg-blue-500 hover:bg-blue-500"
+                                  : "hover:bg-blue-50"
+                              }`}
+                              onClick={() => setUserRole(role.id)}
+                            >
+                              <div className="flex items-center gap-3 w-full relative">
+                                <Icon className="w-5 h-5" />
+                                <div className="text-left">
+                                  <div className="font-semibold">
+                                    {role.label}
+                                  </div>
+                                  <div className="text-xs opacity-70">
+                                    {role.description}
+                                  </div>
                                 </div>
-                                <div className="text-xs opacity-70">
-                                  {role.description}
+                                <div className="absolute right-3">
+                                  {userRole === role.id && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="bg-green-400"
+                                    >
+                                      Selected
+                                    </Badge>
+                                  )}
                                 </div>
                               </div>
-                              {userRole === role.id && (
-                                <Badge variant="secondary" className="ml-auto">
-                                  Selected
-                                </Badge>
-                              )}
-                            </div>
-                          </Button>
-                        );
-                      })}
+                            </Button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
@@ -232,70 +241,79 @@ export default function LoginPage() {
 
               <TabsContent value="admin" className="space-y-4">
                 <form onSubmit={handleAdminSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-email">Email</Label>
-                    <Input
-                      id="admin-email"
-                      type="email"
-                      value={adminEmail}
-                      onChange={(e) => setAdminEmail(e.target.value)}
-                      placeholder="Enter your email"
-                      required
-                      className="h-11"
-                    />
-                  </div>
+                  <div className="flex justify-center gap-10">
+                    <div className="w-full flex flex-col justify-center">
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-email">Email</Label>
+                        <Input
+                          id="admin-email"
+                          type="email"
+                          value={adminEmail}
+                          onChange={(e) => setAdminEmail(e.target.value)}
+                          placeholder="Enter your email"
+                          required
+                          className="h-11"
+                        />
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="admin-password">Password</Label>
-                    <Input
-                      id="admin-password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      required
-                      className="h-11"
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="admin-password">Password</Label>
+                        <Input
+                          id="admin-password"
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Enter your password"
+                          required
+                          className="h-11"
+                        />
+                      </div>
+                    </div>
 
-                  <div className="space-y-3">
-                    <Label>Select Role</Label>
-                    <div className="grid grid-cols-1 gap-2">
-                      {adminRoles.map((role) => {
-                        const Icon = role.icon;
-                        return (
-                          <Button
-                            key={role.id}
-                            type="button"
-                            variant={
-                              adminRole === role.id ? "default" : "outline"
-                            }
-                            className={`h-auto p-3 justify-start ${
-                              adminRole === role.id
-                                ? "bg-blue-600 hover:bg-blue-700"
-                                : "hover:bg-blue-50"
-                            }`}
-                            onClick={() => setAdminRole(role.id)}
-                          >
-                            <div className="flex items-center gap-3 w-full">
-                              <Icon className="w-5 h-5" />
-                              <div className="text-left">
-                                <div className="font-semibold">
-                                  {role.label}
+                    <div className="space-y-3 w-full bg-gray-100 px-10 py-3">
+                      <Label>Select Role</Label>
+                      <div className="grid grid-cols-1 gap-2">
+                        {adminRoles.map((role) => {
+                          const Icon = role.icon;
+                          return (
+                            <Button
+                              key={role.id}
+                              type="button"
+                              variant={
+                                adminRole === role.id ? "default" : "outline"
+                              }
+                              className={`h-auto p-3 justify-start ${
+                                adminRole === role.id
+                                  ? "bg-blue-500 hover:bg-blue-500"
+                                  : "hover:bg-blue-50"
+                              }`}
+                              onClick={() => setAdminRole(role.id)}
+                            >
+                              <div className="flex items-center gap-3 w-full relative">
+                                <Icon className="w-5 h-5" />
+                                <div className="text-left">
+                                  <div className="font-semibold">
+                                    {role.label}
+                                  </div>
+                                  <div className="text-xs opacity-70">
+                                    {role.description}
+                                  </div>
                                 </div>
-                                <div className="text-xs opacity-70">
-                                  {role.description}
+                                <div className="absolute right-3">
+                                  {adminRole === role.id && (
+                                    <Badge
+                                      variant="default"
+                                      className="bg-green-400 text-black"
+                                    >
+                                      Selected
+                                    </Badge>
+                                  )}
                                 </div>
                               </div>
-                              {adminRole === role.id && (
-                                <Badge variant="secondary" className="ml-auto">
-                                  Selected
-                                </Badge>
-                              )}
-                            </div>
-                          </Button>
-                        );
-                      })}
+                            </Button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 

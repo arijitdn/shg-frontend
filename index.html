@@ -8,5 +8,16 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(
+        navigator.userAgent
+      );
+      const isSmallScreen = window.innerWidth < 1024;
+
+      if (isMobileUA || isSmallScreen) {
+        document.body.innerHTML =
+          "<h1>This website is only accessible via a desktop or laptop.</h1>";
+      }
+    </script>
   </body>
 </html>

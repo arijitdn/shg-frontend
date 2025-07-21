@@ -50,7 +50,6 @@ import {
   Users,
   Plus,
   Edit,
-  Trash2,
   Upload,
   FileText,
   CalendarIcon,
@@ -477,7 +476,10 @@ export default function BMMUDashboard() {
                         <div>
                           <p className="font-medium">{org.name}</p>
                           <p className="text-sm text-gray-500">
-                            {org.type} - {org.district}
+                            Block: {org.block}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            District: {org.district}
                           </p>
                         </div>
                         <div className="text-right">
