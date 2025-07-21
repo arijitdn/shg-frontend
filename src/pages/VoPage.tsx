@@ -37,8 +37,7 @@ import {
 import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import apiClient from "../lib/api";
 
 interface Product {
@@ -60,11 +59,14 @@ interface Product {
 }
 
 export default function VOApprovalPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [_selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [recommendation, setRecommendation] = useState("");
+  const [remarks, setRemarks] = useState("");
   const [isRecommending, setIsRecommending] = useState(false);
 
   const fetchProducts = async () => {
@@ -74,7 +76,6 @@ export default function VOApprovalPage() {
     setProducts(productsData);
   };
 
-  const navigate = useNavigate();
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name
       .toLowerCase()
@@ -101,30 +102,30 @@ export default function VOApprovalPage() {
     setIsRecommending(true);
 
     if (action === "reject") {
-      await axios.patch(
-        `http://localhost:3000/api/products/${productId}/vo-recommendation`,
-        {
-          recommend: false,
-        }
-      );
+      await apiClient.patch(`/products/reject/${productId}`, {
+        reject: true,
+        rejectedBy: "VO",
+        remarks,
+      });
+      setIsRecommending(false);
+      setSelectedProduct(null);
+      setRemarks("");
+      window.location.reload();
     } else {
-      await axios.patch(
-        `http://localhost:3000/api/products/${productId}/vo-recommendation`,
-        {
-          recommend: true,
-        }
-      );
+      await apiClient.patch(`/products/recommend/${productId}`, {
+        recommend: true,
+        remarks,
+      });
+      setIsRecommending(false);
+      setSelectedProduct(null);
+      setRemarks("");
+      window.location.reload();
     }
-
-    setIsRecommending(false);
-    setSelectedProduct(null);
-    setRecommendation("");
-    navigate("/vo");
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
+      case "PENDING":
         return (
           <Badge
             variant="outline"
@@ -134,14 +135,14 @@ export default function VOApprovalPage() {
             Pending
           </Badge>
         );
-      case "recommended":
+      case "RECOMMENDED":
         return (
           <Badge variant="outline" className="text-green-600 border-green-600">
             <CheckCircle className="w-3 h-3 mr-1" />
             Recommended
           </Badge>
         );
-      case "rejected":
+      case "REJECTED":
         return (
           <Badge variant="outline" className="text-red-600 border-red-600">
             <XCircle className="w-3 h-3 mr-1" />
@@ -408,13 +409,13 @@ export default function VOApprovalPage() {
                           htmlFor="recommendation"
                           className="text-sm font-medium"
                         >
-                          Recommendation Notes
+                          Remarks (optional)
                         </Label>
                         <Textarea
-                          id="recommendation"
-                          placeholder="Add your recommendation notes here..."
-                          value={recommendation}
-                          onChange={(e) => setRecommendation(e.target.value)}
+                          id="remarks"
+                          placeholder="Add your remarks here..."
+                          value={remarks}
+                          onChange={(e) => setRemarks(e.target.value)}
                           className="mt-1"
                         />
                       </div>

@@ -56,6 +56,7 @@ interface Product {
   imageUrl: string;
   shgId: string;
   userId: string;
+  remarks?: string;
 }
 
 export default function SHGProductsPage() {
@@ -629,12 +630,31 @@ export default function SHGProductsPage() {
                                 </div>
                               </div>
 
-                              <div>
-                                <Label className="text-sm font-medium">
-                                  Product Specifications
-                                </Label>
-                                <div className="mt-2 grid grid-cols-2 gap-2">
-                                  Mock Data
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <Label className="text-sm font-medium">
+                                    Product Specifications
+                                  </Label>
+                                  <div className="mt-2 grid grid-cols-2 gap-2">
+                                    Mock Data
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <Label className="text-sm font-medium">
+                                    Remarks (if any)
+                                  </Label>
+                                  <div className="mt-2 grid grid-cols-2 gap-2">
+                                    {product.remarks ? (
+                                      <p className="text-sm">
+                                        {product.remarks}
+                                      </p>
+                                    ) : (
+                                      <p className="text-sm text-muted-foreground">
+                                        No remarks provided
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -656,7 +676,9 @@ export default function SHGProductsPage() {
           <DialogHeader>
             <DialogTitle>Edit Product</DialogTitle>
             <DialogDescription>
-              Update product details and information
+              {selectedProduct?.isRejected
+                ? "This product has been rejected and cannot be edited."
+                : "Update the product details below."}
             </DialogDescription>
           </DialogHeader>
           {selectedProduct && (
@@ -667,6 +689,7 @@ export default function SHGProductsPage() {
                   id="edit-img"
                   type="file"
                   accept="image/*"
+                  disabled={selectedProduct?.isRejected}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
@@ -708,6 +731,7 @@ export default function SHGProductsPage() {
                   <Input
                     id="edit-name"
                     value={selectedProduct.name}
+                    disabled={selectedProduct.isRejected}
                     onChange={(e) =>
                       setSelectedProduct({
                         ...selectedProduct,
@@ -720,6 +744,7 @@ export default function SHGProductsPage() {
                   <Label htmlFor="edit-category">Category</Label>
                   <Select
                     value={selectedProduct.category}
+                    disabled={selectedProduct.isRejected}
                     onValueChange={(value) =>
                       setSelectedProduct({
                         ...selectedProduct,
@@ -732,7 +757,11 @@ export default function SHGProductsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {productCategories.map((category) => (
-                        <SelectItem key={category.value} value={category.value}>
+                        <SelectItem
+                          key={category.value}
+                          value={category.value}
+                          disabled={selectedProduct.isRejected}
+                        >
                           {category.name}
                         </SelectItem>
                       ))}
@@ -745,6 +774,7 @@ export default function SHGProductsPage() {
                 <Textarea
                   id="edit-description"
                   value={selectedProduct.description}
+                  disabled={selectedProduct.isRejected}
                   onChange={(e) =>
                     setSelectedProduct({
                       ...selectedProduct,
@@ -760,6 +790,7 @@ export default function SHGProductsPage() {
                   <Input
                     id="edit-price"
                     type="number"
+                    disabled={selectedProduct.isRejected}
                     value={selectedProduct.price / 100}
                     onChange={(e) =>
                       setSelectedProduct({
@@ -777,6 +808,7 @@ export default function SHGProductsPage() {
                     id="edit-stock"
                     type="number"
                     value={selectedProduct.stock}
+                    disabled={selectedProduct.isRejected}
                     onChange={(e) =>
                       setSelectedProduct({
                         ...selectedProduct,
@@ -803,7 +835,12 @@ export default function SHGProductsPage() {
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateProduct}>Update Product</Button>
+            <Button
+              disabled={selectedProduct?.isRejected}
+              onClick={handleUpdateProduct}
+            >
+              Update Product
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
