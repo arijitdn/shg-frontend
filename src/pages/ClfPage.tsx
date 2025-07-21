@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import {
@@ -53,106 +53,93 @@ import {
   MapPin,
   IndianRupee,
 } from "lucide-react";
+import apiClient from "../lib/api";
 
-// Mock data for VO recommended products
-const voProducts = [
-  {
-    id: "VO001",
-    productName: "Organic Rice",
-    farmerName: "Rajesh Kumar",
-    voName: "Sunrise Village Organization",
-    district: "Patna",
-    block: "Danapur",
-    quantity: "500 kg",
-    pricePerUnit: 45,
-    totalValue: 22500,
-    category: "Grains",
-    submittedDate: "2024-01-15",
-    status: "pending",
-    description:
-      "Premium quality organic basmati rice grown without pesticides",
-  },
-  {
-    id: "VO002",
-    productName: "Fresh Vegetables",
-    farmerName: "Sunita Devi",
-    voName: "Green Valley VO",
-    district: "Gaya",
-    block: "Bodh Gaya",
-    quantity: "200 kg",
-    pricePerUnit: 25,
-    totalValue: 5000,
-    category: "Vegetables",
-    submittedDate: "2024-01-14",
-    status: "pending",
-    description:
-      "Mixed seasonal vegetables including tomatoes, onions, and potatoes",
-  },
-];
-
-// Mock data for NFC products from SHGs
-const nfcProducts = [
-  {
-    id: "NFC001",
-    productName: "Handwoven Sarees",
-    shgName: "Mahila Shakti SHG",
-    voName: "Craft Village Organization",
-    district: "Madhubani",
-    block: "Jainagar",
-    quantity: "50 pieces",
-    pricePerUnit: 1200,
-    totalValue: 60000,
-    category: "Handicrafts",
-    submittedDate: "2024-01-16",
-    status: "pending",
-    description:
-      "Traditional Madhubani art handwoven sarees made by women artisans",
-  },
-  {
-    id: "NFC002",
-    productName: "Bamboo Baskets",
-    shgName: "Eco Craft SHG",
-    voName: "Rural Artisan VO",
-    district: "Darbhanga",
-    block: "Keoti",
-    quantity: "100 pieces",
-    pricePerUnit: 150,
-    totalValue: 15000,
-    category: "Handicrafts",
-    submittedDate: "2024-01-13",
-    status: "pending",
-    description: "Eco-friendly bamboo baskets for storage and decoration",
-  },
-];
+interface Product {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  price: number;
+  stock: number;
+  type: string;
+  isRecommended?: boolean;
+  isApproved?: boolean;
+  isRejected?: boolean;
+  status: "draft" | "pending" | "approved" | "rejected";
+  createdAt: string;
+  imageUrl: string;
+  shgId: string;
+  userId: string;
+}
 
 export default function CLFApprovalPage() {
-  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [voProducts, setVoProducts] = useState<Product[]>([]);
+  const [nfcProducts, setNfcProducts] = useState<Product[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [pendingCount, setPendingCount] = useState(0);
+  const [totalPrice, setTotalPrice] = useState(0);
   const [approvalDialog, setApprovalDialog] = useState(false);
   const [rejectionDialog, setRejectionDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [remarks, setRemarks] = useState("");
 
+  const fetchProducts = async () => {
+    const { data } = await apiClient.get<Product[]>("/products");
+    setVoProducts(
+      data.filter(
+        (p: Product) => p.isRecommended && !p.isApproved && !p.isRejected
+      )
+    );
+
+    setNfcProducts(
+      data.filter(
+        (p: Product) => p.type === "nfc" && !p.isApproved && !p.isRejected
+      )
+    );
+
+    setPendingCount(
+      data.length -
+        data.filter((p: Product) => p.isApproved || p.isRejected).length
+    );
+
+    setTotalPrice(data.reduce((sum, p) => sum + (p.price / 100) * p.stock, 0));
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
+      case "RECOMMENDED":
         return (
           <Badge
             variant="outline"
             className="text-yellow-600 border-yellow-600"
           >
             <Clock className="w-3 h-3 mr-1" />
+            Recommended
+          </Badge>
+        );
+
+      case "PENDING":
+        return (
+          <Badge variant="outline" className="text-blue-600 border-blue-600">
+            <Clock className="w-3 h-3 mr-1" />
             Pending
           </Badge>
         );
-      case "approved":
+
+      case "APPROVED":
         return (
           <Badge variant="outline" className="text-green-600 border-green-600">
             <CheckCircle className="w-3 h-3 mr-1" />
             Approved
           </Badge>
         );
-      case "rejected":
+      case "REJECTED":
         return (
           <Badge variant="outline" className="text-red-600 border-red-600">
             <XCircle className="w-3 h-3 mr-1" />
@@ -180,7 +167,7 @@ export default function CLFApprovalPage() {
     product,
     type,
   }: {
-    product: any;
+    product: Product;
     type: "vo" | "nfc";
   }) => (
     <Dialog>
@@ -194,7 +181,7 @@ export default function CLFApprovalPage() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
-            Product Details - {product.productName}
+            Product Details - {product.name}
           </DialogTitle>
           <DialogDescription>
             {type === "vo" ? "VO Recommended Product" : "NFC Product from SHG"}
@@ -203,33 +190,45 @@ export default function CLFApprovalPage() {
         <div className="grid gap-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-sm font-medium text-gray-600">
-                Product Name
-              </Label>
-              <p className="font-semibold">{product.productName}</p>
+              <img
+                src={product.imageUrl || "/placeholder.svg"}
+                alt={product.name}
+                className="w-full h-48 object-cover rounded-lg"
+              />
             </div>
-            <div>
-              <Label className="text-sm font-medium text-gray-600">
-                Category
-              </Label>
-              <p>{product.category}</p>
+            <div className="flex flex-col justify-center gap-2">
+              <div>
+                <Label className="text-sm font-medium text-gray-600">
+                  Product Name
+                </Label>
+                <p className="font-semibold">{product.name}</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-gray-600">
+                  Category
+                </Label>
+                <p className="font-semibold">
+                  {product.category.charAt(0).toUpperCase() +
+                    product.category.slice(1)}
+                </p>
+              </div>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-sm font-medium text-gray-600">
-                {type === "vo" ? "Farmer Name" : "SHG Name"}
+                {type === "vo" ? "Individual Name" : "SHG Name"}
               </Label>
               <p className="font-semibold">
-                {type === "vo" ? product.farmerName : product.shgName}
+                {type === "vo" ? "Mock User" : product.shgId}
               </p>
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-600">
                 VO Name
               </Label>
-              <p>{product.voName}</p>
+              <p>Mock VO</p>
             </div>
           </div>
 
@@ -240,12 +239,12 @@ export default function CLFApprovalPage() {
               </Label>
               <p className="flex items-center gap-1">
                 <MapPin className="w-4 h-4" />
-                {product.district}
+                West Tripura
               </p>
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-600">Block</Label>
-              <p>{product.block}</p>
+              <p>Mock Block</p>
             </div>
           </div>
 
@@ -254,7 +253,7 @@ export default function CLFApprovalPage() {
               <Label className="text-sm font-medium text-gray-600">
                 Quantity
               </Label>
-              <p className="font-semibold">{product.quantity}</p>
+              <p className="font-semibold">{product.stock}</p>
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-600">
@@ -262,7 +261,7 @@ export default function CLFApprovalPage() {
               </Label>
               <p className="flex items-center gap-1">
                 <IndianRupee className="w-4 h-4" />
-                {product.pricePerUnit}
+                {product.price / 100}
               </p>
             </div>
             <div>
@@ -271,7 +270,7 @@ export default function CLFApprovalPage() {
               </Label>
               <p className="flex items-center gap-1 font-semibold text-green-600">
                 <IndianRupee className="w-4 h-4" />
-                {product.totalValue.toLocaleString()}
+                {(product.price / 100) * product.stock}
               </p>
             </div>
           </div>
@@ -292,7 +291,7 @@ export default function CLFApprovalPage() {
               </Label>
               <p className="flex items-center gap-1">
                 <Calendar className="w-4 h-4" />
-                {new Date(product.submittedDate).toLocaleDateString()}
+                {new Date(product.createdAt).toLocaleDateString()}
               </p>
             </div>
             <div>
@@ -332,7 +331,7 @@ export default function CLFApprovalPage() {
           <DialogHeader>
             <DialogTitle>Approve Product</DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve "{selectedProduct?.productName}"?
+              Are you sure you want to approve "{selectedProduct?.name}"?
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -352,7 +351,7 @@ export default function CLFApprovalPage() {
             </Button>
             <Button
               className="bg-green-600 hover:bg-green-700"
-              onClick={() => handleApproval(selectedProduct?.id, true)}
+              onClick={() => handleApproval(selectedProduct!.id, true)}
             >
               Confirm Approval
             </Button>
@@ -375,8 +374,7 @@ export default function CLFApprovalPage() {
           <DialogHeader>
             <DialogTitle>Reject Product</DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting "
-              {selectedProduct?.productName}".
+              Please provide a reason for rejecting "{selectedProduct?.name}".
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -397,7 +395,7 @@ export default function CLFApprovalPage() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => handleApproval(selectedProduct?.id, false)}
+              onClick={() => handleApproval(selectedProduct!.id, false)}
               disabled={!remarks.trim()}
             >
               Confirm Rejection
@@ -427,9 +425,7 @@ export default function CLFApprovalPage() {
             className="text-yellow-600 border-yellow-600"
           >
             <Clock className="w-4 h-4 mr-1" />
-            {voProducts.filter((p) => p.status === "pending").length +
-              nfcProducts.filter((p) => p.status === "pending").length}{" "}
-            Pending
+            {pendingCount} Pending
           </Badge>
         </div>
       </div>
@@ -456,164 +452,15 @@ export default function CLFApprovalPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="PENDING">Pending</SelectItem>
+                <SelectItem value="APPROVED">Approved</SelectItem>
+                <SelectItem value="REJECTED">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabs for VO and NFC Products */}
-      <Tabs defaultValue="vo-products" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="vo-products" className="flex items-center gap-2">
-            <Users className="w-4 h-4" />
-            VO Recommended Products ({voProducts.length})
-          </TabsTrigger>
-          <TabsTrigger value="nfc-products" className="flex items-center gap-2">
-            <Package className="w-4 h-4" />
-            NFC Products from SHGs ({nfcProducts.length})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* VO Products Tab */}
-        <TabsContent value="vo-products">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                VO Recommended Individual Products
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product Details</TableHead>
-                    <TableHead>Farmer</TableHead>
-                    <TableHead>VO & Location</TableHead>
-                    <TableHead>Quantity & Value</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {voProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-semibold">{product.productName}</p>
-                          <p className="text-sm text-gray-600">
-                            {product.category}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            ID: {product.id}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="font-medium">{product.farmerName}</p>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{product.voName}</p>
-                          <p className="text-sm text-gray-600">
-                            {product.district}, {product.block}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-semibold">{product.quantity}</p>
-                          <p className="text-sm text-green-600 flex items-center">
-                            <IndianRupee className="w-3 h-3" />
-                            {product.totalValue.toLocaleString()}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(product.status)}</TableCell>
-                      <TableCell>
-                        <ApprovalActions product={product} type="vo" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* NFC Products Tab */}
-        <TabsContent value="nfc-products">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                NFC Products from SHGs
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product Details</TableHead>
-                    <TableHead>SHG</TableHead>
-                    <TableHead>VO & Location</TableHead>
-                    <TableHead>Quantity & Value</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {nfcProducts.map((product) => (
-                    <TableRow key={product.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-semibold">{product.productName}</p>
-                          <p className="text-sm text-gray-600">
-                            {product.category}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            ID: {product.id}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="font-medium">{product.shgName}</p>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{product.voName}</p>
-                          <p className="text-sm text-gray-600">
-                            {product.district}, {product.block}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-semibold">{product.quantity}</p>
-                          <p className="text-sm text-green-600 flex items-center">
-                            <IndianRupee className="w-3 h-3" />
-                            {product.totalValue.toLocaleString()}
-                          </p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{getStatusBadge(product.status)}</TableCell>
-                      <TableCell>
-                        <ApprovalActions product={product} type="nfc" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -622,8 +469,7 @@ export default function CLFApprovalPage() {
               <div>
                 <p className="text-sm text-gray-600">Pending Approvals</p>
                 <p className="text-2xl font-bold text-yellow-600">
-                  {voProducts.filter((p) => p.status === "pending").length +
-                    nfcProducts.filter((p) => p.status === "pending").length}
+                  {pendingCount}
                 </p>
               </div>
             </div>
@@ -665,16 +511,165 @@ export default function CLFApprovalPage() {
               <div>
                 <p className="text-sm text-gray-600">Total Value</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {(
-                    voProducts.reduce((sum, p) => sum + p.totalValue, 0) +
-                    nfcProducts.reduce((sum, p) => sum + p.totalValue, 0)
-                  ).toLocaleString()}
+                  {totalPrice}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Tabs for VO and NFC Products */}
+      <Tabs defaultValue="vo-products" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="vo-products" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            VO Recommended Products ({voProducts.length})
+          </TabsTrigger>
+          <TabsTrigger value="nfc-products" className="flex items-center gap-2">
+            <Package className="w-4 h-4" />
+            NFC Products from SHGs ({nfcProducts.length})
+          </TabsTrigger>
+        </TabsList>
+
+        {/* VO Products Tab */}
+        <TabsContent value="vo-products">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                VO Recommended Individual Products
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product Details</TableHead>
+                    <TableHead>Individual</TableHead>
+                    {/* <TableHead>VO & Location</TableHead> */}
+                    <TableHead>Quantity & Value</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {voProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-semibold">{product.name}</p>
+                          <p className="text-sm text-gray-600">
+                            {product.category.charAt(0).toUpperCase() +
+                              product.category.slice(1)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            ID: {product.id}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="font-medium">
+                          Mock User (SHG: {product.shgId})
+                        </p>
+                      </TableCell>
+                      {/* <TableCell>
+                        <div>
+                          <p className="font-medium">{product.voName}</p>
+                          <p className="text-sm text-gray-600">
+                            {product.district}, {product.block}
+                          </p>
+                        </div>
+                      </TableCell> */}
+                      <TableCell>
+                        <div>
+                          <p className="font-semibold">{product.stock}</p>
+                          <p className="text-sm text-green-600 flex items-center">
+                            <IndianRupee className="w-3 h-3" />
+                            {product.price / 100}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(product.status)}</TableCell>
+                      <TableCell>
+                        <ApprovalActions product={product} type="vo" />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* NFC Products Tab */}
+        <TabsContent value="nfc-products">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                NFC Products from SHGs
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product Details</TableHead>
+                    <TableHead>SHG</TableHead>
+                    {/* <TableHead>VO & Location</TableHead> */}
+                    <TableHead>Quantity & Value</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {nfcProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div>
+                          <p className="font-semibold">{product.name}</p>
+                          <p className="text-sm text-gray-600">
+                            {product.category.charAt(0).toUpperCase() +
+                              product.category.slice(1)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            ID: {product.id}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="font-medium">{product.shgId}</p>
+                      </TableCell>
+                      {/* <TableCell>
+                        <div>
+                          <p className="font-medium">{product.voName}</p>
+                          <p className="text-sm text-gray-600">
+                            {product.district}, {product.block}
+                          </p>
+                        </div>
+                      </TableCell> */}
+                      <TableCell>
+                        <div>
+                          <p className="font-semibold">{product.stock}</p>
+                          <p className="text-sm text-green-600 flex items-center">
+                            <IndianRupee className="w-3 h-3" />
+                            {product.price / 100}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>{getStatusBadge(product.status)}</TableCell>
+                      <TableCell>
+                        <ApprovalActions product={product} type="nfc" />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
