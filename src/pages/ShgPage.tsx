@@ -159,10 +159,10 @@ export default function SHGProductsPage() {
         description: "Your product has been created successfully.",
       });
     } catch (error) {
-      window.location.reload();
       toast({
         title: "Error",
-        description: "Failed to upload product to server.",
+        description:
+          "Failed to upload product. Make sure all fields are filled correctly.",
         variant: "destructive",
       });
     }
