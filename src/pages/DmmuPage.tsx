@@ -55,7 +55,7 @@ import {
 
 export default function DMMUDashboard() {
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
-  const [selectedSHG, setSelectedSHG] = useState<string | null>(null);
+  const [_selectedSHG, setSelectedSHG] = useState<string | null>(null);
 
   const [shgFilters, setSHGFilters] = useState({
     block: "all",
