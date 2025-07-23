@@ -206,14 +206,14 @@ export default function ComparisonsPage({
                   </div>
                   <div className="flex gap-1 items-end">
                     <div
-                      className="relative mb-2 w-6 rounded-lg transition-all duration-[0.3s] ease-[ease] min-h-5 cursor-pointer hover:scale-110 bg-blue-400"
+                      className="relative mb-2 w-6 rounded-lg transition-all   min-h-5 cursor-pointer hover:scale-110 bg-blue-400"
                       title={`${shg1}: ₹${data.shg1.toLocaleString()}`}
                       style={{
                         height: `${(data.shg1 / 25000) * 150}px`,
                       }}
                     />
                     <div
-                      className="relative mb-2 w-6 rounded-lg transition-all duration-[0.3s] ease-[ease] min-h-5 cursor-pointer hover:scale-110 bg-green-600"
+                      className="relative mb-2 w-6 rounded-lg transition-all   min-h-5 cursor-pointer hover:scale-110 bg-green-600"
                       title={`${shg2}: ₹${data.shg2.toLocaleString()}`}
                       style={{
                         height: `${(data.shg2 / 25000) * 150}px`,

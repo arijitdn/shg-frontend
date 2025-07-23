@@ -48,7 +48,7 @@ export default function InventoryCards({ inventory }: InventoryCardsProps) {
             </div>
             <div className="overflow-hidden h-2 rounded bg-zinc-300">
               <div
-                className="h-full rounded duration-[0.3s] ease-[ease] transition-[width]"
+                className="h-full rounded transition-[width]"
                 style={{
                   backgroundColor:
                     index === 0

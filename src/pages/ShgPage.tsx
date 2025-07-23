@@ -224,11 +224,27 @@ export default function SHGProductsPage() {
       formData.append("remarks", selectedProduct.remarks);
     }
 
-    await apiClient.patch(`/products/update/${selectedProduct.id}`, formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    if (!selectedProduct.isRejected) {
+      await apiClient.patch(
+        `/products/update/${selectedProduct.id}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+    } else {
+      await apiClient.patch(
+        `/products/reapply/${selectedProduct.id}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+    }
 
     const updatedProducts = products.map((product) =>
       product.id === selectedProduct.id ? selectedProduct : product
@@ -236,10 +252,19 @@ export default function SHGProductsPage() {
     setProducts(updatedProducts);
     setIsEditDialogOpen(false);
     setSelectedProduct(null);
-    toast({
-      title: "Product Updated",
-      description: "Product details have been updated successfully.",
-    });
+
+    if (selectedProduct.isRejected) {
+      toast({
+        title: "Product sent for review",
+        description:
+          "Your product has been sent for review, please wait for the decision.",
+      });
+    } else {
+      toast({
+        title: "Product Updated",
+        description: "Product details have been updated successfully.",
+      });
+    }
   };
 
   const stats = {
@@ -703,7 +728,7 @@ export default function SHGProductsPage() {
             <DialogTitle>Edit Product</DialogTitle>
             <DialogDescription>
               {selectedProduct?.isRejected
-                ? "This product has been rejected and cannot be edited."
+                ? "This product has been rejected and please edit the details and send for review."
                 : "Update the product details below."}
             </DialogDescription>
           </DialogHeader>
@@ -715,7 +740,6 @@ export default function SHGProductsPage() {
                   id="edit-img"
                   type="file"
                   accept="image/*"
-                  disabled={selectedProduct?.isRejected}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (!file) return;
@@ -757,7 +781,6 @@ export default function SHGProductsPage() {
                   <Input
                     id="edit-name"
                     value={selectedProduct.name}
-                    disabled={selectedProduct.isRejected}
                     onChange={(e) =>
                       setSelectedProduct({
                         ...selectedProduct,
@@ -770,7 +793,6 @@ export default function SHGProductsPage() {
                   <Label htmlFor="edit-category">Category</Label>
                   <Select
                     value={selectedProduct.category}
-                    disabled={selectedProduct.isRejected}
                     onValueChange={(value) =>
                       setSelectedProduct({
                         ...selectedProduct,
@@ -783,11 +805,7 @@ export default function SHGProductsPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {productCategories.map((category) => (
-                        <SelectItem
-                          key={category.value}
-                          value={category.value}
-                          disabled={selectedProduct.isRejected}
-                        >
+                        <SelectItem key={category.value} value={category.value}>
                           {category.name}
                         </SelectItem>
                       ))}
@@ -800,7 +818,6 @@ export default function SHGProductsPage() {
                 <Textarea
                   id="edit-description"
                   value={selectedProduct.description}
-                  disabled={selectedProduct.isRejected}
                   onChange={(e) =>
                     setSelectedProduct({
                       ...selectedProduct,
@@ -816,7 +833,6 @@ export default function SHGProductsPage() {
                   <Input
                     id="edit-price"
                     type="number"
-                    disabled={selectedProduct.isRejected}
                     value={selectedProduct.price / 100}
                     onChange={(e) =>
                       setSelectedProduct({
@@ -834,7 +850,6 @@ export default function SHGProductsPage() {
                     id="edit-stock"
                     type="number"
                     value={selectedProduct.stock}
-                    disabled={selectedProduct.isRejected}
                     onChange={(e) =>
                       setSelectedProduct({
                         ...selectedProduct,
@@ -861,11 +876,10 @@ export default function SHGProductsPage() {
             >
               Cancel
             </Button>
-            <Button
-              disabled={selectedProduct?.isRejected}
-              onClick={handleUpdateProduct}
-            >
-              Update Product
+            <Button onClick={handleUpdateProduct}>
+              {selectedProduct?.isRejected
+                ? "Reapply for Review"
+                : "Update Product"}
             </Button>
           </div>
         </DialogContent>

@@ -29,7 +29,7 @@ export default function SalesChart({ salesData }: SalesChartProps) {
               <span>K</span>
             </div>
             <div
-              className="relative mb-2 w-6 rounded-lg transition-all duration-[0.3s] ease-[ease] min-h-5"
+              className="relative mb-2 w-6 rounded-lg transition-all   min-h-5"
               style={{
                 backgroundColor:
                   index === salesData.length - 1

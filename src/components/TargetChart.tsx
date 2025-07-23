@@ -21,7 +21,7 @@ export default function TargetChart({ monthlyTargets }: TargetChartProps) {
             </div>
             <div className="overflow-hidden relative flex-1 h-5 rounded-xl bg-zinc-300">
               <div
-                className="h-full rounded-xl duration-[0.3s] ease-[ease] transition-[width]"
+                className="h-full rounded-xl transition-[width]"
                 style={{
                   backgroundColor:
                     target.percentage >= 100

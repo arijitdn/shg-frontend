@@ -50,7 +50,7 @@ interface Product {
   isRecommended?: boolean;
   isApproved?: boolean;
   isRejected?: boolean;
-  status: "draft" | "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected";
   createdAt: string;
   imageUrl: string;
   shgId: string;
@@ -59,6 +59,7 @@ interface Product {
 
 export default function VOApprovalPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [pendingProducts, setPendingProducts] = useState<Product[]>();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [_selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -70,9 +71,15 @@ export default function VOApprovalPage() {
       "/products"
     );
     setProducts(productsData);
+
+    setPendingProducts(
+      productsData.filter(
+        (p) => !p.isApproved && !p.isRecommended && !p.isRejected
+      )
+    );
   };
 
-  const filteredProducts = products.filter((product) => {
+  const filteredProducts = pendingProducts?.filter((product) => {
     const matchesSearch = product.name
       .toLowerCase()
       .includes(searchTerm.toLowerCase());
@@ -89,7 +96,7 @@ export default function VOApprovalPage() {
     return matchesSearch && matchesCategory && isSingleType && isPending;
   });
 
-  const categories = [...new Set(products.map((p) => p.category))];
+  const categories = [...new Set(pendingProducts?.map((p) => p.category))];
 
   const handleRecommend = async (
     productId: string,
@@ -176,7 +183,7 @@ export default function VOApprovalPage() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{products.length}</div>
+            <div className="text-2xl font-bold">{pendingProducts?.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -187,7 +194,9 @@ export default function VOApprovalPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{filteredProducts.length}</div>
+            <div className="text-2xl font-bold">
+              {filteredProducts?.length ?? 0}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -249,7 +258,7 @@ export default function VOApprovalPage() {
 
       {/* Products Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProducts.map((product) => (
+        {filteredProducts?.map((product) => (
           <Card key={product.id} className="overflow-hidden">
             <div className="aspect-square relative">
               <img
@@ -446,7 +455,7 @@ export default function VOApprovalPage() {
         ))}
       </div>
 
-      {filteredProducts.length === 0 && (
+      {filteredProducts?.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="text-center space-y-2">
