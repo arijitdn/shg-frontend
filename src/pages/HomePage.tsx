@@ -1,5 +1,4 @@
 import type React from "react";
-
 import { useState } from "react";
 import { Button } from "../components/ui/button";
 import {
@@ -22,6 +21,8 @@ import { User, Shield, Building2, Users, Globe } from "lucide-react";
 import { users } from "../lib/users";
 import { useToast } from "../hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../lib/api";
+import Cookies from "js-cookie";
 
 export default function HomePage() {
   const [userId, setUserId] = useState("");
@@ -70,9 +71,21 @@ export default function HomePage() {
     },
   ];
 
-  const handleUserSubmit = (e: React.FormEvent) => {
+  const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user = users.find((user) => user.id === userId);
+
+    const { data: user } = await apiClient.post(
+      `/shg-auth/login`,
+      {
+        userId,
+        password,
+        role: userRole,
+      },
+      {
+        withCredentials: true,
+      }
+    );
+
     if (!user) {
       return toast({
         title: "Invalid Credentials",
@@ -81,22 +94,12 @@ export default function HomePage() {
       });
     }
 
-    if (user.password !== password) {
-      return toast({
-        title: "Invalid Credentials",
-        description:
-          "Please check your ID and password again before signing in",
-      });
-    }
-
-    if (user.role !== userRole) {
-      return toast({
-        title: "Access Denied",
-        description: "You are not allowed to login as " + userRole,
-      });
-    }
-
-    navigate(user.role.toLowerCase());
+    Cookies.set("access_token", user.accessToken, {
+      secure: true,
+      sameSite: "strict",
+      expires: 1,
+      path: "/",
+    });
   };
 
   const handleAdminSubmit = (e: React.FormEvent) => {
