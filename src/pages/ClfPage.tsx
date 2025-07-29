@@ -681,7 +681,7 @@ export default function CLFApprovalPage() {
                       </TableCell>
                       <TableCell>
                         <p className="font-medium">
-                          Mock User (SHG: {product.shgId})
+                          {username} (SHG: {shgName})
                         </p>
                       </TableCell>
                       {/* <TableCell>
@@ -693,8 +693,8 @@ export default function CLFApprovalPage() {
                         </div>
                       </TableCell> */}
                       <TableCell>
-                        <div>
-                          <p className="font-semibold">{product.stock}</p>
+                        <div className="flex gap-1">
+                          <p className="font-semibold">{product.stock} x</p>
                           <p className="text-sm text-green-600 flex items-center">
                             <IndianRupee className="w-3 h-3" />
                             {product.price / 100}
