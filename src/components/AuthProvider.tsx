@@ -24,7 +24,6 @@ export default function AuthProvider({ children }: AuthProviderProps) {
 
         setAuthentication(true, userData);
       } catch (error) {
-        // Token is invalid, remove it
         logout();
       }
     };

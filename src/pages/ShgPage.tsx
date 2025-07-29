@@ -38,7 +38,6 @@ import { Textarea } from "../components/ui/textarea";
 import { useToast } from "../hooks/use-toast";
 import apiClient from "../lib/api";
 import { productCategories } from "../lib/categories";
-import useAuthStore from "@/store/auth.store";
 
 interface Product {
   id: string;
