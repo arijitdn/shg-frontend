@@ -38,6 +38,8 @@ import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
 import apiClient from "../lib/api";
+import { toast } from "@/hooks/use-toast";
+import useAuthStore from "@/store/auth.store";
 
 interface Product {
   id: string;
@@ -58,6 +60,8 @@ interface Product {
 }
 
 export default function VOApprovalPage() {
+  const [username, setUsername] = useState("");
+  const [shgName, setSHGName] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [pendingProducts, setPendingProducts] = useState<Product[]>();
   const [searchTerm, setSearchTerm] = useState("");
@@ -65,6 +69,7 @@ export default function VOApprovalPage() {
   const [_selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [remarks, setRemarks] = useState("");
   const [isRecommending, setIsRecommending] = useState(false);
+  const { user } = useAuthStore();
 
   const fetchProducts = async () => {
     const { data: productsData }: { data: Product[] } = await apiClient.get(
@@ -78,6 +83,21 @@ export default function VOApprovalPage() {
       )
     );
   };
+
+  async function getUserAndSHGData() {
+    const { data } = await apiClient.get("/shg-auth/get-details");
+    if (!data) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch user and SHG details.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUsername(data.username);
+    setSHGName(data.shgName);
+  }
 
   const filteredProducts = pendingProducts?.filter((product) => {
     const matchesSearch = product.name
@@ -107,7 +127,7 @@ export default function VOApprovalPage() {
     if (action === "reject") {
       await apiClient.patch(`/products/reject/${productId}`, {
         reject: true,
-        rejectedBy: "VO",
+        rejectedBy: user.userId,
         remarks,
       });
       setIsRecommending(false);
@@ -117,6 +137,7 @@ export default function VOApprovalPage() {
     } else {
       await apiClient.patch(`/products/recommend/${productId}`, {
         recommend: true,
+        recommendedBy: user.userId,
         remarks,
       });
       setIsRecommending(false);
@@ -159,6 +180,7 @@ export default function VOApprovalPage() {
 
   useEffect(() => {
     fetchProducts();
+    getUserAndSHGData();
   }, []);
 
   return (
@@ -379,7 +401,7 @@ export default function VOApprovalPage() {
                           </Label>
                           <div className="mt-2 space-y-1">
                             <p className="text-sm">
-                              <strong>Name:</strong> Mock SHG
+                              <strong>Name:</strong> {shgName}
                             </p>
                             <p className="text-sm">
                               <strong>ID:</strong> {product.shgId}
@@ -392,7 +414,7 @@ export default function VOApprovalPage() {
                           </Label>
                           <div className="mt-2 space-y-1">
                             <p className="text-sm">
-                              <strong>Name:</strong> Mock User
+                              <strong>Name:</strong> {username}
                             </p>
                             <p className="text-sm">
                               <strong>ID:</strong> {product.userId}

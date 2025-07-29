@@ -38,6 +38,7 @@ import { Textarea } from "../components/ui/textarea";
 import { useToast } from "../hooks/use-toast";
 import apiClient from "../lib/api";
 import { productCategories } from "../lib/categories";
+import useAuthStore from "@/store/auth.store";
 
 interface Product {
   id: string;
@@ -59,6 +60,8 @@ interface Product {
 }
 
 export default function SHGProductsPage() {
+  const [username, setUsername] = useState("");
+  const [shgName, setSHGName] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -67,6 +70,7 @@ export default function SHGProductsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const { toast } = useToast();
+  const { user } = useAuthStore();
 
   const [newProduct, setNewProduct] = useState({
     name: "",
@@ -81,6 +85,21 @@ export default function SHGProductsPage() {
   async function fetchProducts() {
     const products = await apiClient.get("/products");
     setProducts(products.data);
+  }
+
+  async function getUserAndSHGData() {
+    const { data } = await apiClient.get("/shg-auth/get-details");
+    if (!data) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch user and SHG details.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUsername(data.username);
+    setSHGName(data.shgName);
   }
 
   const filteredProducts = products.filter((product) => {
@@ -133,8 +152,8 @@ export default function SHGProductsPage() {
     );
     formData.append("stock", newProduct.stock);
     formData.append("type", newProduct.type.toLowerCase());
-    formData.append("userId", "user01");
-    formData.append("shgId", "shg01");
+    formData.append("userId", user.userId!);
+    formData.append("shgId", user.organizationId!);
 
     try {
       await apiClient.post("/products/create", formData, {
@@ -276,6 +295,7 @@ export default function SHGProductsPage() {
 
   useEffect(() => {
     fetchProducts();
+    getUserAndSHGData();
   }, []);
 
   return (
@@ -659,7 +679,7 @@ export default function SHGProductsPage() {
                                   </Label>
                                   <div className="mt-2 space-y-1">
                                     <p className="text-sm">
-                                      <strong>Name:</strong> Mock SHG
+                                      <strong>Name:</strong> {shgName}
                                     </p>
                                     <p className="text-sm">
                                       <strong>ID:</strong> {product.shgId}
@@ -672,7 +692,7 @@ export default function SHGProductsPage() {
                                   </Label>
                                   <div className="mt-2 space-y-1">
                                     <p className="text-sm">
-                                      <strong>Name:</strong> Mock User
+                                      <strong>Name:</strong> {username}
                                     </p>
                                     <p className="text-sm">
                                       <strong>ID:</strong> {product.userId}

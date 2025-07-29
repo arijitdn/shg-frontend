@@ -54,6 +54,8 @@ import {
   IndianRupee,
 } from "lucide-react";
 import apiClient from "../lib/api";
+import { toast } from "@/hooks/use-toast";
+import useAuthStore from "@/store/auth.store";
 
 interface Product {
   id: string;
@@ -75,6 +77,8 @@ interface Product {
 }
 
 export default function CLFApprovalPage() {
+  const [username, setUsername] = useState("");
+  const [shgName, setSHGName] = useState("");
   const [voProducts, setVoProducts] = useState<Product[]>([]);
   const [nfcProducts, setNfcProducts] = useState<Product[]>([]);
   const [_selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -84,6 +88,8 @@ export default function CLFApprovalPage() {
   const [_rejectionDialog, setRejectionDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  const { user } = useAuthStore();
 
   const fetchProducts = async () => {
     const { data } = await apiClient.get<Product[]>("/products");
@@ -115,9 +121,24 @@ export default function CLFApprovalPage() {
       ].reduce((sum, p) => sum + (p.price / 100) * p.stock, 0)
     );
   };
+  async function getUserAndSHGData() {
+    const { data } = await apiClient.get("/shg-auth/get-details");
+    if (!data) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch user and SHG details.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUsername(data.username);
+    setSHGName(data.shgName);
+  }
 
   useEffect(() => {
     fetchProducts();
+    getUserAndSHGData();
   }, []);
 
   // useEffect(() => {
@@ -188,7 +209,7 @@ export default function CLFApprovalPage() {
 
       await apiClient.patch(`/products/reject/${productId}`, {
         reject: true,
-        rejectedBy: "CLF",
+        rejectedBy: user.userId,
         remarks: remarks.trim() || undefined,
       });
       setApprovalDialog(false);
@@ -200,6 +221,7 @@ export default function CLFApprovalPage() {
 
     await apiClient.patch(`/products/approve/${productId}`, {
       approve: true,
+      approvedBy: user.userId,
       remarks: remarks.trim() || undefined,
     });
     setApprovalDialog(false);
@@ -281,7 +303,7 @@ export default function CLFApprovalPage() {
                 {type === "vo" ? "Individual Name" : "SHG Name"}
               </Label>
               <p className="font-semibold">
-                {type === "vo" ? "Mock User" : product.shgId}
+                {type === "vo" ? username : shgName}
               </p>
             </div>
             <div>

@@ -196,7 +196,9 @@ export default function HomePage() {
                           id="user-id"
                           type="text"
                           value={userId}
-                          onChange={(e) => setUserId(e.target.value)}
+                          onChange={(e) =>
+                            setUserId(e.target.value.toUpperCase())
+                          }
                           placeholder="Enter your user ID"
                           required
                           className="h-11"
