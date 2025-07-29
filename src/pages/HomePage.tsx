@@ -77,12 +77,6 @@ export default function HomePage() {
       icon: Users,
       description: "District Mission Management Unit",
     },
-    {
-      id: "CLF",
-      label: "CLF",
-      icon: Globe,
-      description: "Cluster Level Federation",
-    },
   ];
 
   const handleUserSubmit = async (e: React.FormEvent) => {

@@ -60,11 +60,14 @@ import {
   Package,
   ClipboardList,
   BarChart3,
+  Search,
 } from "lucide-react";
 import { format } from "date-fns";
-import axios from "axios";
-import { BACKEND_URL } from "../lib/constants";
 import { useToast } from "../hooks/use-toast";
+import { useUser } from "../hooks/use-user";
+import { organizationApi, productApi } from "../lib/services";
+import { productCategories } from "../lib/categories";
+import useAuthStore from "../store/auth.store";
 
 // Types
 interface Member {
@@ -96,6 +99,13 @@ interface Product {
   quantity: number;
   description: string;
   uploadDate: string;
+  imageUrl: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  type?: string;
+  stock?: number;
+  userId?: string;
+  createdAt?: string;
+  remarks?: string;
 }
 
 interface Meeting {
@@ -115,43 +125,126 @@ export default function BMMUDashboard() {
   const [totalShgs, setTotalShgs] = useState(0);
   const [totalVos, setTotalVos] = useState(0);
   const [totalClfs, setTotalClfs] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { name: userName } = useUser();
+  const { user } = useAuthStore();
 
   async function fetchData() {
-    const { data } = await axios.get(`${BACKEND_URL}/shg`);
-    setOrganizations(data);
-    setTotalShgs(data.length);
+    setIsLoading(true);
+    try {
+      // Fetch SHGs
+      const { data: shgData } = await organizationApi.getAllSHGs();
+      const shgOrgs: Organization[] = shgData.map((shg: any) => ({
+        id: shg.groupId,
+        name: shg.name,
+        type: "SHG" as const,
+        members: [],
+        status: "active" as const,
+        block: shg.block,
+        district: shg.district,
+        voId: shg.voId,
+        clfId: shg.clfId,
+      }));
 
-    const { data: voData } = await axios.get(`${BACKEND_URL}/vo`);
-    setOrganizations((prev) =>
-      prev.concat(voData.filter((org: Organization) => org.type === "VO"))
-    );
-    setTotalVos(voData.length);
+      // Fetch VOs
+      const { data: voData } = await organizationApi.getAllVOs();
+      const voOrgs: Organization[] = voData.map((vo: any) => ({
+        id: vo.groupId,
+        name: vo.name,
+        type: "VO" as const,
+        members: [],
+        status: "active" as const,
+        district: vo.district,
+        clfId: vo.clfId,
+      }));
 
-    const { data: clfData } = await axios.get(`${BACKEND_URL}/clf`);
-    setOrganizations((prev) =>
-      prev.concat(clfData.filter((org: Organization) => org.type === "CLF"))
-    );
-    setTotalClfs(clfData.length);
+      // Fetch CLFs
+      const { data: clfData } = await organizationApi.getAllCLFs();
+      const clfOrgs: Organization[] = clfData.map((clf: any) => ({
+        id: clf.groupId,
+        name: clf.name,
+        type: "CLF" as const,
+        members: [],
+        status: "active" as const,
+        district: clf.district,
+      }));
+
+      // Combine all organizations
+      const allOrgs = [...shgOrgs, ...voOrgs, ...clfOrgs];
+      setOrganizations(allOrgs);
+      setTotalShgs(shgOrgs.length);
+      setTotalVos(voOrgs.length);
+      setTotalClfs(clfOrgs.length);
+
+      // Fetch approved products
+      try {
+        const { data: productData } = await productApi.getApprovedProducts();
+        const formattedProducts: Product[] = productData.map(
+          (product: any) => ({
+            id: product.id,
+            name: product.name,
+            shgId: product.shgId,
+            shgName: product.shgName || "Unknown SHG",
+            category: product.category,
+            price: product.price,
+            quantity: product.stock || product.quantity || 0,
+            description: product.description,
+            uploadDate: product.createdAt
+              ? new Date(product.createdAt).toISOString().split("T")[0]
+              : new Date().toISOString().split("T")[0],
+            imageUrl: product.imageUrl || "",
+            status: product.status || "APPROVED",
+          })
+        );
+        setProducts(formattedProducts);
+      } catch (productError) {
+        console.log(
+          "No products found or error fetching products:",
+          productError
+        );
+        setProducts([]);
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.response?.data?.message || "Failed to fetch data",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
+
   // Fetch data on component mount
   useEffect(() => {
     fetchData();
   }, []);
 
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: "1",
-      name: "Handmade Bags",
-      shgId: "1",
-      shgName: "Mahila Shakti SHG",
-      category: "Handicrafts",
-      price: 250,
-      quantity: 50,
-      description: "Beautiful handmade jute bags",
-      uploadDate: "2024-01-20",
-    },
-  ]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productSearchTerm, setProductSearchTerm] = useState("");
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+
+  // Filter products based on search term
+  useEffect(() => {
+    if (!productSearchTerm.trim()) {
+      setFilteredProducts(products);
+    } else {
+      const filtered = products.filter(
+        (product) =>
+          product.name
+            .toLowerCase()
+            .includes(productSearchTerm.toLowerCase()) ||
+          product.shgName
+            .toLowerCase()
+            .includes(productSearchTerm.toLowerCase()) ||
+          product.category
+            .toLowerCase()
+            .includes(productSearchTerm.toLowerCase())
+      );
+      setFilteredProducts(filtered);
+    }
+  }, [products, productSearchTerm]);
 
   const [meetings, setMeetings] = useState<Meeting[]>([
     {
@@ -196,7 +289,12 @@ export default function BMMUDashboard() {
     price: "",
     quantity: "",
     description: "",
+    imageUrl: "",
   });
+
+  const [shgSearchId, setShgSearchId] = useState("");
+  const [isSearchingSHG, setIsSearchingSHG] = useState(false);
+  const [foundSHG, setFoundSHG] = useState<Organization | null>(null);
 
   const [newMeeting, setNewMeeting] = useState({
     title: "",
@@ -208,77 +306,124 @@ export default function BMMUDashboard() {
 
   // Helper functions
   const createOrganization = async () => {
-    if (newOrg.type === "CLF") {
-      const clf = {
-        name: newOrg.name,
-        district: newOrg.district,
-      };
+    if (!newOrg.name || !newOrg.type) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      const { data, status } = await axios.post(`${BACKEND_URL}/clf`, clf);
-      if (status !== 201) {
-        toast({
-          title: "Error",
-          description: "Failed to create CLF",
-          variant: "destructive",
-        });
-        return;
+    setIsLoading(true);
+    try {
+      if (newOrg.type === "CLF") {
+        const clf = {
+          name: newOrg.name,
+          district: newOrg.district,
+        };
+
+        const { data, status } = await organizationApi.createCLF(clf);
+        if (status !== 201) {
+          toast({
+            title: "Error",
+            description: "Failed to create CLF",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const org: Organization = {
+          id: data.groupId,
+          name: data.name,
+          type: "CLF",
+          members: [],
+          status: "active",
+          district: data.district,
+        };
+
+        setOrganizations([...organizations, org]);
+        setTotalClfs((prev) => prev + 1);
+      } else if (newOrg.type === "VO") {
+        const vo = {
+          name: newOrg.name,
+          district: newOrg.district,
+          clfId: newOrg.clfId,
+        };
+
+        const { data, status } = await organizationApi.createVO(vo);
+        if (status !== 201) {
+          toast({
+            title: "Error",
+            description: "Failed to create VO",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const org: Organization = {
+          id: data.groupId,
+          name: data.name,
+          type: "VO",
+          members: [],
+          status: "active",
+          district: data.district,
+          clfId: data.clfId,
+        };
+
+        setOrganizations([...organizations, org]);
+        setTotalVos((prev) => prev + 1);
+      } else if (newOrg.type === "SHG") {
+        const { data, status } = await organizationApi.createSHG(newOrg);
+        if (status !== 201) {
+          toast({
+            title: "Error",
+            description: "Failed to create SHG",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const org: Organization = {
+          id: data.groupId,
+          name: data.name,
+          type: "SHG",
+          members: [],
+          status: "active",
+          block: data.block,
+          district: data.district,
+          voId: data.voId,
+          clfId: data.clfId,
+        };
+
+        setOrganizations([...organizations, org]);
+        setTotalShgs((prev) => prev + 1);
       }
 
-      const org: Organization = {
-        id: data.id,
-        name: data.name,
-        type: "CLF",
-        members: [],
-        status: "active",
-        block: newOrg.block,
-        district: newOrg.district,
+      toast({
+        title: "Success",
+        description: `${newOrg.type} created successfully`,
+      });
+
+      // Reset form and close dialog
+      setNewOrg({
+        name: "",
+        type: "SHG",
+        block: "",
+        district: "",
         voId: "",
-        clfId: data.id,
-      };
-
-      setOrganizations([...organizations, org]);
-    } else if (newOrg.type === "VO") {
-      const vo = {
-        name: newOrg.name,
-        district: newOrg.district,
-        clfId: newOrg.clfId,
-      };
-
-      const { data, status } = await axios.post(`${BACKEND_URL}/vo`, vo);
-      if (status !== 201) {
-        toast({
-          title: "Error",
-          description: "Failed to create VO",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const org: Organization = {
-        id: data.id,
-        name: data.name,
-        type: "VO",
-        members: [],
-        status: "active",
-        block: newOrg.block,
-        district: newOrg.district,
-        voId: data.id,
-        clfId: newOrg.clfId,
-      };
-
-      setOrganizations([...organizations, org]);
-    } else if (newOrg.type === "SHG") {
-      const { data, status } = await axios.post(`${BACKEND_URL}/shg`, newOrg);
-      if (status !== 201) {
-        toast({
-          title: "Error",
-          description: "Failed to create SHG",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setOrganizations([...organizations, data]);
+        clfId: "",
+      });
+      setIsCreateOrgOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || `Failed to create ${newOrg.type}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -302,34 +447,101 @@ export default function BMMUDashboard() {
     setIsAddMemberOpen(false);
   };
 
-  const addProduct = () => {
-    const selectedSHG = organizations.find(
-      (org) => org.id === newProduct.shgId
-    );
-    if (!selectedSHG) return;
+  const addProduct = async () => {
+    let selectedSHG = organizations.find((org) => org.id === newProduct.shgId);
 
-    const product: Product = {
-      id: Date.now().toString(),
-      name: newProduct.name,
-      shgId: newProduct.shgId,
-      shgName: selectedSHG.name,
-      category: newProduct.category,
-      price: Number.parseFloat(newProduct.price),
-      quantity: Number.parseInt(newProduct.quantity),
-      description: newProduct.description,
-      uploadDate: new Date().toISOString().split("T")[0],
-    };
+    // If no SHG selected from dropdown, use the found SHG from search
+    if (!selectedSHG && foundSHG) {
+      selectedSHG = foundSHG;
+    }
 
-    setProducts([...products, product]);
-    setNewProduct({
-      name: "",
-      shgId: "",
-      category: "",
-      price: "",
-      quantity: "",
-      description: "",
-    });
-    setIsAddProductOpen(false);
+    if (!selectedSHG) {
+      toast({
+        title: "Error",
+        description: "Please select an SHG",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (
+      !newProduct.name ||
+      !newProduct.category ||
+      !newProduct.price ||
+      !newProduct.quantity
+    ) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const formData = new FormData();
+
+      // Handle image upload
+      const fileInput = document.getElementById(
+        "product-image"
+      ) as HTMLInputElement;
+      const file = fileInput?.files?.[0];
+
+      if (file) {
+        formData.append("image", file);
+      }
+
+      formData.append("name", newProduct.name);
+      formData.append("category", newProduct.category);
+      formData.append("description", newProduct.description);
+      formData.append(
+        "price",
+        Math.round(parseFloat(newProduct.price) * 100).toString()
+      );
+      formData.append("stock", newProduct.quantity);
+      formData.append("type", "nfc"); // Set type to NFC for BMMU products
+      formData.append("shgId", selectedSHG.id);
+
+      // Use the user ID from auth if available, otherwise use a default
+      if (user?.id) {
+        formData.append("userId", user.id);
+      }
+
+      await productApi.createProduct(formData);
+
+      toast({
+        title: "Success",
+        description: "Product created successfully",
+      });
+
+      // Reset form and close dialog
+      setNewProduct({
+        name: "",
+        shgId: "",
+        category: "",
+        price: "",
+        quantity: "",
+        description: "",
+        imageUrl: "",
+      });
+      setShgSearchId("");
+      setFoundSHG(null);
+      setIsAddProductOpen(false);
+
+      // Refresh the products list
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to create product",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const scheduleMeeting = () => {
@@ -374,6 +586,81 @@ export default function BMMUDashboard() {
     setOrganizations(updatedOrgs);
   };
 
+  const searchSHGById = async () => {
+    if (!shgSearchId.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an SHG ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSearchingSHG(true);
+    try {
+      const { data } = await organizationApi.getSHGById(shgSearchId);
+
+      // Validate that we have the required data
+      if (!data || !data.groupId || !data.name) {
+        throw new Error("Invalid SHG data received from server");
+      }
+
+      const foundShgOrg: Organization = {
+        id: data.groupId,
+        name: data.name,
+        type: "SHG",
+        members: [],
+        status: "active",
+        block: data.block || "",
+        district: data.district || "",
+        voId: data.voId || "",
+        clfId: data.clfId || "",
+      };
+
+      setFoundSHG(foundShgOrg);
+      setNewProduct({ ...newProduct, shgId: foundShgOrg.id });
+
+      toast({
+        title: "Success",
+        description: `Found SHG: ${foundShgOrg.name}`,
+      });
+    } catch (error: any) {
+      setFoundSHG(null);
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || error.message || "SHG not found",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSearchingSHG(false);
+    }
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        // 5MB limit
+        toast({
+          title: "Error",
+          description: "Image size should be less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setNewProduct({
+          ...newProduct,
+          imageUrl: e.target?.result as string,
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const shgList = organizations.filter((org) => org.type === "SHG");
 
   return (
@@ -387,13 +674,24 @@ export default function BMMUDashboard() {
                 BMMU Dashboard
               </h1>
               <p className="text-sm text-gray-600">
-                Block Mission Management Unit
+                Block Mission Management Unit{" "}
+                {userName && `- Welcome, ${userName}`}
               </p>
             </div>
             <div className="flex space-x-2">
-              <Button onClick={() => setIsCreateOrgOpen(true)}>
+              <Button
+                onClick={() => setIsCreateOrgOpen(true)}
+                disabled={isLoading}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Organization
+              </Button>
+              <Button
+                variant="outline"
+                onClick={fetchData}
+                disabled={isLoading}
+              >
+                {isLoading ? "Loading..." : "Refresh"}
               </Button>
             </div>
           </div>
@@ -414,117 +712,163 @@ export default function BMMUDashboard() {
 
           {/* Dashboard Tab */}
           <TabsContent value="dashboard" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total SHGs
-                  </CardTitle>
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalShgs}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total VOs
-                  </CardTitle>
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalVos}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total CLFs
-                  </CardTitle>
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalClfs}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Total Members
-                  </CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">15</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Organizations</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {organizations.slice(0, 5).map((org) => (
-                      <div
-                        key={org.id}
-                        className="flex items-center justify-between"
-                      >
-                        <div>
-                          <p className="font-medium">{org.name}</p>
-                          <p className="text-sm text-gray-500">
-                            Block: {org.block}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            District: {org.district}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <Badge variant="outline">{org.status}</Badge>
-                        </div>
+            {isLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-lg">Loading dashboard...</span>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Total SHGs
+                      </CardTitle>
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{totalShgs}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Self Help Groups
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Total VOs
+                      </CardTitle>
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{totalVos}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Village Organizations
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Total CLFs
+                      </CardTitle>
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{totalClfs}</div>
+                      <p className="text-xs text-muted-foreground">
+                        Cluster Level Federations
+                      </p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">
+                        Total Organizations
+                      </CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {totalShgs + totalVos + totalClfs}
                       </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+                      <p className="text-xs text-muted-foreground">
+                        All Organizations
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Upcoming Meetings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {meetings
-                      .filter((meeting) => meeting.status === "scheduled")
-                      .slice(0, 5)
-                      .map((meeting) => (
-                        <div
-                          key={meeting.id}
-                          className="flex items-center justify-between"
-                        >
-                          <div>
-                            <p className="font-medium">{meeting.title}</p>
-                            <p className="text-sm text-gray-500">
-                              {meeting.organizationName}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium">
-                              {meeting.date}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {meeting.time}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recent Organizations</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {organizations.length === 0 ? (
+                          <p className="text-center text-gray-500 py-4">
+                            No organizations found
+                          </p>
+                        ) : (
+                          organizations.slice(0, 5).map((org) => (
+                            <div
+                              key={org.id}
+                              className="flex items-center justify-between"
+                            >
+                              <div>
+                                <p className="font-medium">{org.name}</p>
+                                <p className="text-sm text-gray-500">
+                                  Type: {org.type}
+                                </p>
+                                {org.district && (
+                                  <p className="text-sm text-gray-500">
+                                    District: {org.district}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <Badge
+                                  variant={
+                                    org.status === "active"
+                                      ? "default"
+                                      : "secondary"
+                                  }
+                                >
+                                  {org.status}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Upcoming Meetings</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {meetings
+                          .filter((meeting) => meeting.status === "scheduled")
+                          .slice(0, 5)
+                          .map((meeting) => (
+                            <div
+                              key={meeting.id}
+                              className="flex items-center justify-between"
+                            >
+                              <div>
+                                <p className="font-medium">{meeting.title}</p>
+                                <p className="text-sm text-gray-500">
+                                  {meeting.organizationName}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-medium">
+                                  {meeting.date}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  {meeting.time}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        {meetings.filter(
+                          (meeting) => meeting.status === "scheduled"
+                        ).length === 0 && (
+                          <p className="text-center text-gray-500 py-4">
+                            No upcoming meetings
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
           </TabsContent>
 
           {/* Organizations Tab */}
@@ -535,61 +879,83 @@ export default function BMMUDashboard() {
                 <CardDescription>Manage SHGs, VOs, and CLFs</CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Village</TableHead>
-                      <TableHead>Members</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {organizations.map((org) => (
-                      <TableRow key={org.id}>
-                        <TableCell className="font-medium">
-                          {org.name}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{org.type}</Badge>
-                        </TableCell>
-                        <TableCell>{org.district}</TableCell>
-                        <TableCell>15</TableCell>
-                        <TableCell>
-                          <div className="flex items-center space-x-2">
-                            <Switch
-                              checked={org.status === "active"}
-                              onCheckedChange={() => toggleOrgStatus(org.id)}
-                            />
-                            <span className="text-sm">
-                              {org.status === "active" ? "Active" : "Inactive"}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedOrg(org);
-                                setIsAddMemberOpen(true);
-                              }}
-                            >
-                              <UserPlus className="w-4 h-4" />
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
+                {isLoading ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-2">Loading organizations...</span>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>District</TableHead>
+                        <TableHead>Block</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {organizations.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={6}
+                            className="text-center py-8 text-gray-500"
+                          >
+                            No organizations found. Create your first
+                            organization to get started.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        organizations.map((org) => (
+                          <TableRow key={org.id}>
+                            <TableCell className="font-medium">
+                              {org.name}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{org.type}</Badge>
+                            </TableCell>
+                            <TableCell>{org.district || "N/A"}</TableCell>
+                            <TableCell>{org.block || "N/A"}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <Switch
+                                  checked={org.status === "active"}
+                                  onCheckedChange={() =>
+                                    toggleOrgStatus(org.id)
+                                  }
+                                />
+                                <span className="text-sm">
+                                  {org.status === "active"
+                                    ? "Active"
+                                    : "Inactive"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedOrg(org);
+                                    setIsAddMemberOpen(true);
+                                  }}
+                                >
+                                  <UserPlus className="w-4 h-4" />
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -663,9 +1029,23 @@ export default function BMMUDashboard() {
                 </Button>
               </CardHeader>
               <CardContent>
+                {/* Search Bar */}
+                <div className="flex items-center space-x-2 mb-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search products by name, SHG, or category..."
+                      value={productSearchTerm}
+                      onChange={(e) => setProductSearchTerm(e.target.value)}
+                      className="pl-8"
+                    />
+                  </div>
+                </div>
+
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Image</TableHead>
                       <TableHead>Product Name</TableHead>
                       <TableHead>SHG</TableHead>
                       <TableHead>Category</TableHead>
@@ -676,28 +1056,56 @@ export default function BMMUDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {products.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell className="font-medium">
-                          {product.name}
-                        </TableCell>
-                        <TableCell>{product.shgName}</TableCell>
-                        <TableCell>{product.category}</TableCell>
-                        <TableCell>₹{product.price}</TableCell>
-                        <TableCell>{product.quantity}</TableCell>
-                        <TableCell>{product.uploadDate}</TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm">
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                          </div>
+                    {filteredProducts.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="text-center py-8 text-gray-500"
+                        >
+                          {productSearchTerm.trim()
+                            ? "No products found matching your search."
+                            : "No products available. Add your first product to get started."}
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      filteredProducts.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            {product.imageUrl ? (
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="w-12 h-12 object-cover rounded-md border"
+                              />
+                            ) : (
+                              <div className="w-12 h-12 bg-gray-200 rounded-md border flex items-center justify-center">
+                                <Package className="w-6 h-6 text-gray-400" />
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {product.name}
+                          </TableCell>
+                          <TableCell>{product.shgName}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{product.category}</Badge>
+                          </TableCell>
+                          <TableCell>₹{product.price}</TableCell>
+                          <TableCell>{product.quantity}</TableCell>
+                          <TableCell>{product.uploadDate}</TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button variant="outline" size="sm">
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button variant="outline" size="sm">
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -895,16 +1303,17 @@ export default function BMMUDashboard() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="org-name">Organization Name</Label>
+              <Label htmlFor="org-name">Organization Name *</Label>
               <Input
                 id="org-name"
                 value={newOrg.name}
                 onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })}
                 placeholder="Enter organization name"
+                required
               />
             </div>
             <div>
-              <Label htmlFor="org-type">Type</Label>
+              <Label htmlFor="org-type">Type *</Label>
               <Select
                 value={newOrg.type}
                 onValueChange={(value: "SHG" | "VO" | "CLF") =>
@@ -934,45 +1343,71 @@ export default function BMMUDashboard() {
                 placeholder="Enter district name"
               />
             </div>
-            <div>
-              <Label htmlFor="block">Block</Label>
-              <Input
-                id="block"
-                value={newOrg.block}
-                onChange={(e) =>
-                  setNewOrg({ ...newOrg, block: e.target.value })
-                }
-                placeholder="Enter block name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="voId">VO ID</Label>
-              <Input
-                id="voId"
-                value={newOrg.voId}
-                onChange={(e) => setNewOrg({ ...newOrg, voId: e.target.value })}
-                placeholder="Enter VO ID"
-              />
-            </div>
-            <div>
-              <Label htmlFor="clfId">CLF ID</Label>
-              <Input
-                id="clfId"
-                value={newOrg.clfId}
-                onChange={(e) =>
-                  setNewOrg({ ...newOrg, clfId: e.target.value })
-                }
-                placeholder="Enter CLF ID"
-              />
-            </div>
+            {newOrg.type === "SHG" && (
+              <div>
+                <Label htmlFor="block">Block</Label>
+                <Input
+                  id="block"
+                  value={newOrg.block}
+                  onChange={(e) =>
+                    setNewOrg({ ...newOrg, block: e.target.value })
+                  }
+                  placeholder="Enter block name"
+                />
+              </div>
+            )}
+            {newOrg.type === "SHG" && (
+              <div>
+                <Label htmlFor="voId">VO ID</Label>
+                <Input
+                  id="voId"
+                  value={newOrg.voId}
+                  onChange={(e) =>
+                    setNewOrg({ ...newOrg, voId: e.target.value })
+                  }
+                  placeholder="Enter VO ID (optional)"
+                />
+              </div>
+            )}
+            {(newOrg.type === "VO" || newOrg.type === "SHG") && (
+              <div>
+                <Label htmlFor="clfId">CLF ID</Label>
+                <Input
+                  id="clfId"
+                  value={newOrg.clfId}
+                  onChange={(e) =>
+                    setNewOrg({ ...newOrg, clfId: e.target.value })
+                  }
+                  placeholder={`Enter CLF ID ${
+                    newOrg.type === "VO" ? "(required)" : "(optional)"
+                  }`}
+                />
+              </div>
+            )}
             <div className="flex justify-end space-x-2">
               <Button
                 variant="outline"
-                onClick={() => setIsCreateOrgOpen(false)}
+                onClick={() => {
+                  setIsCreateOrgOpen(false);
+                  setNewOrg({
+                    name: "",
+                    type: "SHG",
+                    block: "",
+                    district: "",
+                    voId: "",
+                    clfId: "",
+                  });
+                }}
+                disabled={isLoading}
               >
                 Cancel
               </Button>
-              <Button onClick={createOrganization}>Create Organization</Button>
+              <Button
+                onClick={createOrganization}
+                disabled={isLoading || !newOrg.name || !newOrg.type}
+              >
+                {isLoading ? "Creating..." : "Create Organization"}
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -1024,8 +1459,27 @@ export default function BMMUDashboard() {
       </Dialog>
 
       {/* Add Product Dialog */}
-      <Dialog open={isAddProductOpen} onOpenChange={setIsAddProductOpen}>
-        <DialogContent>
+      <Dialog
+        open={isAddProductOpen}
+        onOpenChange={(open) => {
+          setIsAddProductOpen(open);
+          if (!open) {
+            // Reset form when dialog closes
+            setNewProduct({
+              name: "",
+              shgId: "",
+              category: "",
+              price: "",
+              quantity: "",
+              description: "",
+              imageUrl: "",
+            });
+            setShgSearchId("");
+            setFoundSHG(null);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add New Product</DialogTitle>
             <DialogDescription>
@@ -1033,6 +1487,27 @@ export default function BMMUDashboard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Product Image Upload */}
+            <div>
+              <Label htmlFor="product-image">Product Image</Label>
+              <Input
+                id="product-image"
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="mt-1"
+              />
+              {newProduct.imageUrl && (
+                <div className="mt-2">
+                  <img
+                    src={newProduct.imageUrl}
+                    alt="Product preview"
+                    className="w-32 h-32 object-cover rounded-md border"
+                  />
+                </div>
+              )}
+            </div>
+
             <div>
               <Label htmlFor="product-name">Product Name</Label>
               <Input
@@ -1064,16 +1539,58 @@ export default function BMMUDashboard() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* SHG Search by ID */}
+            <div className="border-t pt-4">
+              <Label className="text-sm font-medium">Or Search SHG by ID</Label>
+              <div className="flex space-x-2 mt-2">
+                <Input
+                  placeholder="Enter SHG ID"
+                  value={shgSearchId}
+                  onChange={(e) => setShgSearchId(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={searchSHGById}
+                  disabled={isSearchingSHG || !shgSearchId.trim()}
+                >
+                  {isSearchingSHG ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              {foundSHG && foundSHG.name && (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                  <p className="text-sm text-green-800">
+                    Found: <span className="font-medium">{foundSHG.name}</span>
+                    {foundSHG.district && ` - ${foundSHG.district}`}
+                  </p>
+                </div>
+              )}
+            </div>
             <div>
               <Label htmlFor="product-category">Category</Label>
-              <Input
-                id="product-category"
+              <Select
                 value={newProduct.category}
-                onChange={(e) =>
-                  setNewProduct({ ...newProduct, category: e.target.value })
+                onValueChange={(value) =>
+                  setNewProduct({ ...newProduct, category: value })
                 }
-                placeholder="Enter category"
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {productCategories.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -1115,7 +1632,20 @@ export default function BMMUDashboard() {
             <div className="flex justify-end space-x-2">
               <Button
                 variant="outline"
-                onClick={() => setIsAddProductOpen(false)}
+                onClick={() => {
+                  setIsAddProductOpen(false);
+                  setNewProduct({
+                    name: "",
+                    shgId: "",
+                    category: "",
+                    price: "",
+                    quantity: "",
+                    description: "",
+                    imageUrl: "",
+                  });
+                  setShgSearchId("");
+                  setFoundSHG(null);
+                }}
               >
                 Cancel
               </Button>
