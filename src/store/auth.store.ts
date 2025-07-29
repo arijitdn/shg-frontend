@@ -1,25 +1,40 @@
 import { create } from "zustand";
 
-const authStore = (set: any) => {
-  return {
-    isAuthenticated: false,
-    user: {
-      id: null,
-      role: null,
-    },
-    setAuthentication: (isAuthenticated: any, user: any) =>
-      set({ isAuthenticated, user }),
-    logout: () =>
-      set({
-        isAuthenticated: false,
-        user: {
-          id: null,
-          role: null,
-        },
-      }),
-  };
-};
+interface User {
+  id: string | null;
+  name?: string;
+  email?: string;
+  phone?: string;
+  role: string | null;
+  userId?: string;
+}
 
-const useAuthStore = create(authStore);
+interface AuthState {
+  isAuthenticated: boolean;
+  user: User;
+  setAuthentication: (isAuthenticated: boolean, user: User) => void;
+  logout: () => void;
+}
+
+const useAuthStore = create<AuthState>((set) => ({
+  isAuthenticated: false,
+  user: {
+    id: null,
+    role: null,
+  },
+  setAuthentication: (isAuthenticated: boolean, user: User) =>
+    set({ isAuthenticated, user }),
+  logout: () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+    set({
+      isAuthenticated: false,
+      user: {
+        id: null,
+        role: null,
+      },
+    });
+  },
+}));
 
 export default useAuthStore;

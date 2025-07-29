@@ -1,5 +1,5 @@
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -18,11 +18,10 @@ import {
 } from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
 import { User, Shield, Building2, Users, Globe } from "lucide-react";
-import { users } from "../lib/users";
 import { useToast } from "../hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import apiClient from "../lib/api";
-import Cookies from "js-cookie";
+import useAuthStore from "../store/auth.store";
 
 export default function HomePage() {
   const [userId, setUserId] = useState("");
@@ -30,9 +29,18 @@ export default function HomePage() {
   const [userRole, setUserRole] = useState("");
   const [password, setPassword] = useState("");
   const [adminRole, setAdminRole] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { setAuthentication, isAuthenticated, user } = useAuthStore();
+
+  // Check if user is already authenticated and redirect
+  useEffect(() => {
+    if (isAuthenticated && user.role) {
+      navigate(`/${user.role.toLowerCase()}`);
+    }
+  }, [isAuthenticated, user.role, navigate]);
 
   const userRoles = [
     { id: "SHG", label: "SHG", icon: Users, description: "Self Help Group" },
@@ -69,66 +77,92 @@ export default function HomePage() {
       icon: Users,
       description: "District Mission Management Unit",
     },
+    {
+      id: "CLF",
+      label: "CLF",
+      icon: Globe,
+      description: "Cluster Level Federation",
+    },
   ];
 
   const handleUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
-    const { data: user } = await apiClient.post(
-      `/shg-auth/login`,
-      {
+    try {
+      const response = await apiClient.post("/shg-auth/login", {
         userId,
         password,
         role: userRole,
-      },
-      {
-        withCredentials: true,
-      }
-    );
+      });
 
-    if (!user) {
-      return toast({
+      console.log(response.data);
+
+      const { accessToken, refreshToken, user } = response.data;
+
+      // Store tokens
+      localStorage.setItem("token", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+
+      // Update auth store
+      setAuthentication(true, user);
+
+      toast({
+        title: "Login Successful",
+        description: `Welcome ${user.name}!`,
+      });
+
+      // Navigate to appropriate dashboard
+      navigate(`/${userRole.toLowerCase()}`);
+    } catch (error: any) {
+      toast({
         title: "Invalid Credentials",
         description:
+          error.response?.data?.message ||
           "Please check your ID and password again before signing in",
       });
+    } finally {
+      setIsLoading(false);
     }
-
-    Cookies.set("access_token", user.accessToken, {
-      secure: true,
-      sameSite: "strict",
-      expires: 1,
-      path: "/",
-    });
   };
 
-  const handleAdminSubmit = (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user = users.find((user) => user.email === adminEmail);
-    if (!user) {
-      return toast({
+    setIsLoading(true);
+
+    try {
+      const response = await apiClient.post("/shg-auth/login", {
+        email: adminEmail,
+        password,
+        role: adminRole,
+      });
+
+      const { accessToken, refreshToken, user } = response.data;
+
+      // Store tokens
+      localStorage.setItem("token", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+
+      // Update auth store
+      setAuthentication(true, user);
+
+      toast({
+        title: "Login Successful",
+        description: `Welcome ${user.name}!`,
+      });
+
+      // Navigate to appropriate dashboard
+      navigate(`/${adminRole.toLowerCase()}`);
+    } catch (error: any) {
+      toast({
         title: "Invalid Credentials",
         description:
-          "Please check your ID and password again before signing in",
+          error.response?.data?.message ||
+          "Please check your email and password again before signing in",
       });
+    } finally {
+      setIsLoading(false);
     }
-
-    if (user.password !== password) {
-      return toast({
-        title: "Invalid Credentials",
-        description:
-          "Please check your ID and password again before signing in",
-      });
-    }
-
-    if (user.role !== adminRole) {
-      return toast({
-        title: "Access Denied",
-        description: "You are not allowed to login as " + adminRole,
-      });
-    }
-
-    navigate(user.role.toLowerCase());
   };
 
   return (
@@ -235,9 +269,9 @@ export default function HomePage() {
                   <Button
                     type="submit"
                     className="w-full h-11 bg-blue-600 hover:bg-blue-700"
-                    disabled={!userRole}
+                    disabled={!userRole || isLoading}
                   >
-                    Sign In as User
+                    {isLoading ? "Signing In..." : "Sign In as User"}
                   </Button>
                 </form>
               </TabsContent>
@@ -323,9 +357,9 @@ export default function HomePage() {
                   <Button
                     type="submit"
                     className="w-full h-11 bg-blue-600 hover:bg-blue-700"
-                    disabled={!adminRole}
+                    disabled={!adminRole || isLoading}
                   >
-                    Sign In as Admin
+                    {isLoading ? "Signing In..." : "Sign In as Admin"}
                   </Button>
                 </form>
               </TabsContent>

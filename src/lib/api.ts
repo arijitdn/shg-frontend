@@ -7,11 +7,6 @@ import createAuthRefreshInceptor from "axios-auth-refresh";
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/api";
 
-interface AuthResponse {
-  accessToken: string;
-  user: any;
-}
-
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -34,14 +29,21 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-const refreshAuth = async (failedRequest: any): Promise<void> => {
+const refreshAuth = async (_failedRequest: any): Promise<void> => {
   try {
-    const response: AxiosResponse<AuthResponse> = await axios.post(
-      "/api/shg-auth/refresh",
-      null,
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (!refreshToken) {
+      throw new Error("No refresh token available");
+    }
+
+    const response: AxiosResponse<{ accessToken: string }> = await axios.post(
+      "/shg-auth/refresh",
+      { refreshToken },
       {
         baseURL: API_BASE_URL,
-        withCredentials: true,
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
     );
 
@@ -51,6 +53,7 @@ const refreshAuth = async (failedRequest: any): Promise<void> => {
     return Promise.resolve();
   } catch (error) {
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
     window.location.assign("/");
     return Promise.reject(error);
   }
