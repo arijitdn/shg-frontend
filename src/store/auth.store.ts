@@ -7,6 +7,7 @@ interface User {
   phone?: string;
   role: string | null;
   userId?: string;
+  organizationId?: string;
 }
 
 interface AuthState {

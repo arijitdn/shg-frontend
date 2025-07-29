@@ -96,8 +96,6 @@ export default function HomePage() {
         role: userRole,
       });
 
-      console.log(response.data);
-
       const { accessToken, refreshToken, user } = response.data;
 
       // Store tokens

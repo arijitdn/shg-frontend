@@ -1,11 +1,12 @@
 import { LogOut, User } from "lucide-react";
 import { Button } from "./ui/button";
-import useAuthStore from "../store/auth.store";
 import { useNavigate } from "react-router-dom";
+import useAuthStore from "@/store/auth.store";
 
 export default function HeaderSection() {
-  const { isAuthenticated, user, logout } = useAuthStore();
   const navigate = useNavigate();
+
+  const { isAuthenticated, user, logout } = useAuthStore();
 
   const handleLogout = () => {
     logout();
