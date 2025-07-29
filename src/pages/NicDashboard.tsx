@@ -61,6 +61,7 @@ import {
 } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import apiClient from "../lib/api";
+import useAuthStore from "@/store/auth.store";
 
 // Types based on backend entities
 interface Post {
@@ -90,6 +91,7 @@ interface Employee {
 interface CreatePostDto {
   name: string;
   location: string;
+  description?: string;
 }
 
 interface CreateEmployeeDto {
@@ -134,7 +136,6 @@ export default function NICAdminDashboard() {
   const [editingPost, setEditingPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(false);
   const [isAddingPost, setIsAddingPost] = useState(false);
-  const [isAddingEmployee, setIsAddingEmployee] = useState(false);
   const [showAddEmployee, setShowAddEmployee] = useState(false);
 
   // Form states
@@ -157,6 +158,8 @@ export default function NICAdminDashboard() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const { logout } = useAuthStore();
 
   // Computed values
   const employeesByPost = selectedPost
@@ -232,7 +235,7 @@ export default function NICAdminDashboard() {
         level: "DMMU",
         joinDate: new Date().toISOString().split("T")[0],
       });
-      setIsAddingEmployee(false);
+      setShowAddEmployee(false);
       loadData();
     } catch (error) {
       console.error("Error creating employee:", error);
@@ -354,6 +357,7 @@ export default function NICAdminDashboard() {
               NIC Admin Dashboard
             </h2>
             <Button
+              onClick={() => logout()}
               variant="secondary"
               className="bg-sky-400 hover:bg-sky-500 text-white"
             >
@@ -833,64 +837,132 @@ export default function NICAdminDashboard() {
               <DialogDescription>Update employee information</DialogDescription>
             </DialogHeader>
             {editingEmployee && (
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="emp-name" className="text-right">
-                    Name
-                  </Label>
-                  <Input
-                    id="emp-name"
-                    defaultValue={editingEmployee.name}
-                    className="col-span-3"
-                  />
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const updateData = {
+                    name: formData.get("emp-name") as string,
+                    email: formData.get("emp-email") as string,
+                    phone: formData.get("emp-phone") as string,
+                    designation: formData.get("emp-designation") as string,
+                    postId: formData.get("emp-post") as string,
+                    level: formData.get("emp-level") as "DMMU" | "BMMU",
+                    status: formData.get("emp-status") as string,
+                  };
+                  handleUpdateEmployee(editingEmployee.id, updateData);
+                }}
+              >
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="emp-name" className="text-right">
+                      Name
+                    </Label>
+                    <Input
+                      id="emp-name"
+                      name="emp-name"
+                      defaultValue={editingEmployee.name}
+                      className="col-span-3"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="emp-email" className="text-right">
+                      Email
+                    </Label>
+                    <Input
+                      id="emp-email"
+                      name="emp-email"
+                      type="email"
+                      defaultValue={editingEmployee.email}
+                      className="col-span-3"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="emp-phone" className="text-right">
+                      Phone
+                    </Label>
+                    <Input
+                      id="emp-phone"
+                      name="emp-phone"
+                      defaultValue={editingEmployee.phone}
+                      className="col-span-3"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="emp-designation" className="text-right">
+                      Designation
+                    </Label>
+                    <Input
+                      id="emp-designation"
+                      name="emp-designation"
+                      defaultValue={editingEmployee.designation}
+                      className="col-span-3"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="emp-level" className="text-right">
+                      Level
+                    </Label>
+                    <Select
+                      name="emp-level"
+                      defaultValue={editingEmployee.level}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="DMMU">DMMU</SelectItem>
+                        <SelectItem value="BMMU">BMMU</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="emp-post" className="text-right">
+                      Post
+                    </Label>
+                    <Select
+                      name="emp-post"
+                      defaultValue={editingEmployee.postId}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {posts.map((post) => (
+                          <SelectItem key={post.id} value={post.id}>
+                            {post.name} - {post.location}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="emp-status" className="text-right">
+                      Status
+                    </Label>
+                    <Select
+                      name="emp-status"
+                      defaultValue={editingEmployee.status}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="emp-email" className="text-right">
-                    Email
-                  </Label>
-                  <Input
-                    id="emp-email"
-                    defaultValue={editingEmployee.email}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="emp-designation" className="text-right">
-                    Designation
-                  </Label>
-                  <Input
-                    id="emp-designation"
-                    defaultValue={editingEmployee.designation}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="emp-post" className="text-right">
-                    Post
-                  </Label>
-                  <Select
-                    defaultValue={
-                      posts.find((p) => p.id === editingEmployee.postId)
-                        ?.name || ""
-                    }
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {posts.map((post) => (
-                        <SelectItem key={post.id} value={post.name}>
-                          {post.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                <DialogFooter>
+                  <Button type="submit">Save Changes</Button>
+                </DialogFooter>
+              </form>
             )}
-            <DialogFooter>
-              <Button type="submit">Save Changes</Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -902,46 +974,63 @@ export default function NICAdminDashboard() {
               <DialogDescription>Update post information</DialogDescription>
             </DialogHeader>
             {editingPost && (
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="post-edit-name" className="text-right">
-                    Name
-                  </Label>
-                  <Input
-                    id="post-edit-name"
-                    defaultValue={editingPost.name}
-                    className="col-span-3"
-                  />
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const updateData = {
+                    name: formData.get("post-edit-name") as string,
+                    location: formData.get("post-edit-location") as string,
+                  };
+                  handleUpdatePost(editingPost.id, updateData);
+                }}
+              >
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="post-edit-name" className="text-right">
+                      Name
+                    </Label>
+                    <Input
+                      id="post-edit-name"
+                      name="post-edit-name"
+                      defaultValue={editingPost.name}
+                      className="col-span-3"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="post-edit-location" className="text-right">
+                      Location
+                    </Label>
+                    <Input
+                      id="post-edit-location"
+                      name="post-edit-location"
+                      defaultValue={editingPost.location}
+                      className="col-span-3"
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label
+                      htmlFor="post-edit-description"
+                      className="text-right"
+                    >
+                      Description
+                    </Label>
+                    <Input
+                      id="post-edit-description"
+                      name="post-edit-description"
+                      defaultValue={editingPost.description}
+                      className="col-span-3"
+                      placeholder="Post description"
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="post-edit-location" className="text-right">
-                    Location
-                  </Label>
-                  <Input
-                    id="post-edit-location"
-                    defaultValue={editingPost.location}
-                    className="col-span-3"
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="post-edit-status" className="text-right">
-                    Status
-                  </Label>
-                  <Select defaultValue={editingPost.status}>
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Active">Active</SelectItem>
-                      <SelectItem value="Inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+                <DialogFooter>
+                  <Button type="submit">Save Changes</Button>
+                </DialogFooter>
+              </form>
             )}
-            <DialogFooter>
-              <Button type="submit">Save Changes</Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 
