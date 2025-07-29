@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import {
   Card,
@@ -59,103 +59,274 @@ import {
   UserX,
   Users,
 } from "lucide-react";
+import { useToast } from "../hooks/use-toast";
+import apiClient from "../lib/api";
 
-// Mock data
-const posts = [
-  {
-    id: 1,
-    name: "District Collector Office",
-    location: "Mumbai",
-    employeeCount: 45,
-    status: "Active",
-  },
-  {
-    id: 2,
-    name: "Regional Transport Office",
-    location: "Delhi",
-    employeeCount: 32,
-    status: "Active",
-  },
-  {
-    id: 3,
-    name: "Public Works Department",
-    location: "Bangalore",
-    employeeCount: 28,
-    status: "Active",
-  },
-  {
-    id: 4,
-    name: "Health Department",
-    location: "Chennai",
-    employeeCount: 67,
-    status: "Inactive",
-  },
-];
+// Types based on backend entities
+interface Post {
+  id: string;
+  name: string;
+  location: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
-const employees = [
-  {
-    id: 1,
-    name: "Rajesh Kumar",
-    email: "rajesh.kumar@nic.in",
-    post: "District Collector Office",
-    designation: "Assistant Collector",
-    status: "Active",
-    joinDate: "2020-03-15",
-  },
-  {
-    id: 2,
-    name: "Priya Sharma",
-    email: "priya.sharma@nic.in",
-    post: "Regional Transport Office",
-    designation: "RTO Officer",
-    status: "Active",
-    joinDate: "2019-07-22",
-  },
-  {
-    id: 3,
-    name: "Amit Patel",
-    email: "amit.patel@nic.in",
-    post: "Public Works Department",
-    designation: "Engineer",
-    status: "Disabled",
-    joinDate: "2021-01-10",
-  },
-  {
-    id: 4,
-    name: "Sunita Reddy",
-    email: "sunita.reddy@nic.in",
-    post: "Health Department",
-    designation: "Medical Officer",
-    status: "Active",
-    joinDate: "2018-11-05",
-  },
-  {
-    id: 5,
-    name: "Vikram Singh",
-    email: "vikram.singh@nic.in",
-    post: "District Collector Office",
-    designation: "Clerk",
-    status: "Active",
-    joinDate: "2022-02-28",
-  },
-];
+interface Employee {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  designation: string;
+  status: string;
+  joinDate: string;
+  postId: string;
+  level: "DMMU" | "BMMU";
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface CreatePostDto {
+  name: string;
+  location: string;
+}
+
+interface CreateEmployeeDto {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  designation: string;
+  postId: string;
+  level: "DMMU" | "BMMU";
+  joinDate: string;
+}
+
+// API functions
+const postsApi = {
+  getAll: () => apiClient.get("/admin/posts"),
+  create: (data: CreatePostDto) => apiClient.post("/admin/posts/create", data),
+  update: (id: string, data: Partial<CreatePostDto>) =>
+    apiClient.patch(`/admin/posts/update/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/admin/posts/delete/${id}`),
+};
+
+const employeesApi = {
+  getAll: () => apiClient.get("/admin/employees"),
+  create: (data: CreateEmployeeDto) =>
+    apiClient.post("/admin/employees/create", data),
+  getByPost: (post: string) =>
+    apiClient.get(`/admin/employees/by-post/${post}`),
+  update: (id: string, data: Partial<CreateEmployeeDto>) =>
+    apiClient.patch(`/admin/employees/update/${id}`, data),
+  delete: (id: string) => apiClient.delete(`/admin/employees/delete/${id}`),
+};
 
 export default function NICAdminDashboard() {
+  const { toast } = useToast();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedPost, setSelectedPost] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [editingEmployee, setEditingEmployee] = useState<any>(null);
-  const [editingPost, setEditingPost] = useState<any>(null);
+  const [levelFilter, setLevelFilter] = useState<string>("all");
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [isAddingPost, setIsAddingPost] = useState(false);
+  const [isAddingEmployee, setIsAddingEmployee] = useState(false);
+  const [showAddEmployee, setShowAddEmployee] = useState(false);
 
-  const filteredEmployees = employees.filter(
-    (emp) =>
-      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.post.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Form states
+  const [newPost, setNewPost] = useState<CreatePostDto>({
+    name: "",
+    location: "",
+  });
+  const [newEmployee, setNewEmployee] = useState<CreateEmployeeDto>({
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    designation: "",
+    postId: "",
+    level: "DMMU",
+    joinDate: new Date().toISOString().split("T")[0],
+  });
 
+  // Load data on component mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Computed values
   const employeesByPost = selectedPost
-    ? employees.filter((emp) => emp.post === selectedPost)
+    ? employees.filter((emp) => {
+        const post = posts.find((p) => p.name === selectedPost);
+        return post ? emp.postId === post.id : false;
+      })
     : [];
+
+  const filteredEmployees = employees.filter((emp) => {
+    const matchesSearch =
+      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.email.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesLevel = levelFilter === "all" || emp.level === levelFilter;
+    return matchesSearch && matchesLevel;
+  });
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [postsResponse, employeesResponse] = await Promise.all([
+        postsApi.getAll(),
+        employeesApi.getAll(),
+      ]);
+      setPosts(postsResponse.data || []);
+      setEmployees(employeesResponse.data || []);
+    } catch (error) {
+      console.error("Error loading data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreatePost = async () => {
+    try {
+      await postsApi.create(newPost);
+      toast({
+        title: "Success",
+        description: "Post created successfully",
+      });
+      setNewPost({ name: "", location: "" });
+      setIsAddingPost(false);
+      loadData();
+    } catch (error) {
+      console.error("Error creating post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create post",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateEmployee = async () => {
+    try {
+      await employeesApi.create(newEmployee);
+      toast({
+        title: "Success",
+        description: "Employee created successfully",
+      });
+      setNewEmployee({
+        name: "",
+        email: "",
+        phone: "",
+        password: "",
+        designation: "",
+        postId: "",
+        level: "DMMU",
+        joinDate: new Date().toISOString().split("T")[0],
+      });
+      setIsAddingEmployee(false);
+      loadData();
+    } catch (error) {
+      console.error("Error creating employee:", error);
+      toast({
+        title: "Error",
+        description: "Failed to create employee",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateEmployee = async (
+    id: string,
+    data: Partial<CreateEmployeeDto>
+  ) => {
+    try {
+      await employeesApi.update(id, data);
+      toast({
+        title: "Success",
+        description: "Employee updated successfully",
+      });
+      setEditingEmployee(null);
+      loadData();
+    } catch (error) {
+      console.error("Error updating employee:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update employee",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteEmployee = async (id: string) => {
+    try {
+      await employeesApi.delete(id);
+      toast({
+        title: "Success",
+        description: "Employee deleted successfully",
+      });
+      loadData();
+    } catch (error) {
+      console.error("Error deleting employee:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete employee",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdatePost = async (id: string, data: Partial<CreatePostDto>) => {
+    try {
+      await postsApi.update(id, data);
+      toast({
+        title: "Success",
+        description: "Post updated successfully",
+      });
+      setEditingPost(null);
+      loadData();
+    } catch (error) {
+      console.error("Error updating post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update post",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeletePost = async (id: string) => {
+    try {
+      await postsApi.delete(id);
+      toast({
+        title: "Success",
+        description: "Post deleted successfully",
+      });
+      loadData();
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete post",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getPostEmployeeCount = (postName: string) => {
+    return employees.filter((emp) => {
+      const post = posts.find((p) => p.name === postName);
+      return post ? emp.postId === post.id : false;
+    }).length;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -180,7 +351,7 @@ export default function NICAdminDashboard() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Admin Dashboard
+              NIC Admin Dashboard
             </h2>
             <Button
               variant="secondary"
@@ -190,7 +361,8 @@ export default function NICAdminDashboard() {
             </Button>
           </div>
           <p className="text-gray-600">
-            Manage employees and posts across all government departments
+            Manage DMMU/BMMU employees and posts across all government
+            departments
           </p>
         </div>
 
@@ -214,7 +386,7 @@ export default function NICAdminDashboard() {
                       View and manage all government posts
                     </CardDescription>
                   </div>
-                  <Dialog>
+                  <Dialog open={isAddingPost} onOpenChange={setIsAddingPost}>
                     <DialogTrigger asChild>
                       <Button>
                         <Plus className="w-4 h-4 mr-2" />
@@ -233,17 +405,36 @@ export default function NICAdminDashboard() {
                           <Label htmlFor="post-name" className="text-right">
                             Name
                           </Label>
-                          <Input id="post-name" className="col-span-3" />
+                          <Input
+                            id="post-name"
+                            className="col-span-3"
+                            value={newPost.name}
+                            onChange={(e) =>
+                              setNewPost({ ...newPost, name: e.target.value })
+                            }
+                          />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                           <Label htmlFor="post-location" className="text-right">
                             Location
                           </Label>
-                          <Input id="post-location" className="col-span-3" />
+                          <Input
+                            id="post-location"
+                            className="col-span-3"
+                            value={newPost.location}
+                            onChange={(e) =>
+                              setNewPost({
+                                ...newPost,
+                                location: e.target.value,
+                              })
+                            }
+                          />
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button type="submit">Create Post</Button>
+                        <Button type="submit" onClick={handleCreatePost}>
+                          Create Post
+                        </Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
@@ -256,62 +447,67 @@ export default function NICAdminDashboard() {
                       <TableHead>Post Name</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Employees</TableHead>
-                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {posts.map((post) => (
-                      <TableRow key={post.id}>
-                        <TableCell className="font-medium">
-                          {post.name}
-                        </TableCell>
-                        <TableCell>{post.location}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {post.employeeCount} employees
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              post.status === "Active"
-                                ? "default"
-                                : "destructive"
-                            }
-                          >
-                            {post.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() => setEditingPost(post)}
-                              >
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Post
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Users className="mr-2 h-4 w-4" />
-                                View Employees
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Post
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          Loading posts...
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : posts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center py-8">
+                          No posts found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      posts.map((post) => (
+                        <TableRow key={post.id}>
+                          <TableCell className="font-medium">
+                            {post.name}
+                          </TableCell>
+                          <TableCell>{post.location}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {getPostEmployeeCount(post.name)} employees
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={() => setEditingPost(post)}
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit Post
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Users className="mr-2 h-4 w-4" />
+                                  View Employees
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => handleDeletePost(post.id)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete Post
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -324,7 +520,7 @@ export default function NICAdminDashboard() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Employees by Post</CardTitle>
+                    <CardTitle>DMMU/BMMU Employees by Post</CardTitle>
                     <CardDescription>
                       View employees assigned to specific posts
                     </CardDescription>
@@ -350,6 +546,8 @@ export default function NICAdminDashboard() {
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Level</TableHead>
                         <TableHead>Designation</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Join Date</TableHead>
@@ -357,67 +555,103 @@ export default function NICAdminDashboard() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {employeesByPost.map((employee) => (
-                        <TableRow key={employee.id}>
-                          <TableCell className="font-medium">
-                            {employee.name}
-                          </TableCell>
-                          <TableCell>{employee.email}</TableCell>
-                          <TableCell>{employee.designation}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                employee.status === "Active"
-                                  ? "default"
-                                  : "destructive"
-                              }
-                            >
-                              {employee.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{employee.joinDate}</TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem
-                                  onClick={() => setEditingEmployee(employee)}
-                                >
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  {employee.status === "Active" ? (
-                                    <>
-                                      <UserX className="mr-2 h-4 w-4" />
-                                      Disable Account
-                                    </>
-                                  ) : (
-                                    <>
-                                      <UserCheck className="mr-2 h-4 w-4" />
-                                      Enable Account
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Shield className="mr-2 h-4 w-4" />
-                                  Transfer Post
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600">
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Remove Employee
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8">
+                            Loading employees...
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : employeesByPost.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8">
+                            No employees found for this post
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        employeesByPost.map((employee) => (
+                          <TableRow key={employee.id}>
+                            <TableCell className="font-medium">
+                              {employee.name}
+                            </TableCell>
+                            <TableCell>{employee.email}</TableCell>
+                            <TableCell>{employee.phone}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  employee.level === "DMMU"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
+                                {employee.level}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{employee.designation}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  employee.status === "active"
+                                    ? "default"
+                                    : "destructive"
+                                }
+                              >
+                                {employee.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {new Date(employee.joinDate).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuItem
+                                    onClick={() => setEditingEmployee(employee)}
+                                  >
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    {employee.status === "active" ? (
+                                      <>
+                                        <UserX className="mr-2 h-4 w-4" />
+                                        Disable Account
+                                      </>
+                                    ) : (
+                                      <>
+                                        <UserCheck className="mr-2 h-4 w-4" />
+                                        Enable Account
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <Shield className="mr-2 h-4 w-4" />
+                                    Transfer Post
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    className="text-red-600"
+                                    onClick={() =>
+                                      handleDeleteEmployee(employee.id)
+                                    }
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Remove Employee
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 ) : (
@@ -435,12 +669,22 @@ export default function NICAdminDashboard() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>All Employees</CardTitle>
+                    <CardTitle>All DMMU/BMMU Employees</CardTitle>
                     <CardDescription>
                       Manage all employees across all posts
                     </CardDescription>
                   </div>
                   <div className="flex items-center space-x-2">
+                    <Select value={levelFilter} onValueChange={setLevelFilter}>
+                      <SelectTrigger className="w-32">
+                        <SelectValue placeholder="Level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Levels</SelectItem>
+                        <SelectItem value="DMMU">DMMU</SelectItem>
+                        <SelectItem value="BMMU">BMMU</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <div className="relative">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -450,7 +694,7 @@ export default function NICAdminDashboard() {
                         className="pl-8 w-[300px]"
                       />
                     </div>
-                    <Button>
+                    <Button onClick={() => setShowAddEmployee(true)}>
                       <Plus className="w-4 h-4 mr-2" />
                       Add Employee
                     </Button>
@@ -463,6 +707,8 @@ export default function NICAdminDashboard() {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Level</TableHead>
                       <TableHead>Post</TableHead>
                       <TableHead>Designation</TableHead>
                       <TableHead>Status</TableHead>
@@ -471,68 +717,104 @@ export default function NICAdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredEmployees.map((employee) => (
-                      <TableRow key={employee.id}>
-                        <TableCell className="font-medium">
-                          {employee.name}
-                        </TableCell>
-                        <TableCell>{employee.email}</TableCell>
-                        <TableCell>{employee.post}</TableCell>
-                        <TableCell>{employee.designation}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              employee.status === "Active"
-                                ? "default"
-                                : "destructive"
-                            }
-                          >
-                            {employee.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{employee.joinDate}</TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem
-                                onClick={() => setEditingEmployee(employee)}
-                              >
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                {employee.status === "Active" ? (
-                                  <>
-                                    <UserX className="mr-2 h-4 w-4" />
-                                    Disable Account
-                                  </>
-                                ) : (
-                                  <>
-                                    <UserCheck className="mr-2 h-4 w-4" />
-                                    Enable Account
-                                  </>
-                                )}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem>
-                                <Shield className="mr-2 h-4 w-4" />
-                                Transfer Post
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Remove Employee
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-8">
+                          Loading employees...
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : filteredEmployees.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={9} className="text-center py-8">
+                          No employees found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredEmployees.map((employee) => (
+                        <TableRow key={employee.id}>
+                          <TableCell className="font-medium">
+                            {employee.name}
+                          </TableCell>
+                          <TableCell>{employee.email}</TableCell>
+                          <TableCell>{employee.phone}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                employee.level === "DMMU"
+                                  ? "default"
+                                  : "secondary"
+                              }
+                            >
+                              {employee.level}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {posts.find((p) => p.id === employee.postId)
+                              ?.name || "N/A"}
+                          </TableCell>
+                          <TableCell>{employee.designation}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                employee.status === "active"
+                                  ? "default"
+                                  : "destructive"
+                              }
+                            >
+                              {employee.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(employee.joinDate).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuItem
+                                  onClick={() => setEditingEmployee(employee)}
+                                >
+                                  <Edit className="mr-2 h-4 w-4" />
+                                  Edit Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  {employee.status === "active" ? (
+                                    <>
+                                      <UserX className="mr-2 h-4 w-4" />
+                                      Disable Account
+                                    </>
+                                  ) : (
+                                    <>
+                                      <UserCheck className="mr-2 h-4 w-4" />
+                                      Enable Account
+                                    </>
+                                  )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                  <Shield className="mr-2 h-4 w-4" />
+                                  Transfer Post
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() =>
+                                    handleDeleteEmployee(employee.id)
+                                  }
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Remove Employee
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -586,7 +868,12 @@ export default function NICAdminDashboard() {
                   <Label htmlFor="emp-post" className="text-right">
                     Post
                   </Label>
-                  <Select defaultValue={editingEmployee.post}>
+                  <Select
+                    defaultValue={
+                      posts.find((p) => p.id === editingEmployee.postId)
+                        ?.name || ""
+                    }
+                  >
                     <SelectTrigger className="col-span-3">
                       <SelectValue />
                     </SelectTrigger>
@@ -654,6 +941,134 @@ export default function NICAdminDashboard() {
             )}
             <DialogFooter>
               <Button type="submit">Save Changes</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Add Employee Dialog */}
+        <Dialog open={showAddEmployee} onOpenChange={setShowAddEmployee}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Employee</DialogTitle>
+              <DialogDescription>
+                Create a new DMMU/BMMU employee account
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="new-emp-name" className="text-right">
+                  Name
+                </Label>
+                <Input
+                  id="new-emp-name"
+                  value={newEmployee.name}
+                  onChange={(e) =>
+                    setNewEmployee({ ...newEmployee, name: e.target.value })
+                  }
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="new-emp-email" className="text-right">
+                  Email
+                </Label>
+                <Input
+                  id="new-emp-email"
+                  type="email"
+                  value={newEmployee.email}
+                  onChange={(e) =>
+                    setNewEmployee({ ...newEmployee, email: e.target.value })
+                  }
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="new-emp-phone" className="text-right">
+                  Phone
+                </Label>
+                <Input
+                  id="new-emp-phone"
+                  value={newEmployee.phone}
+                  onChange={(e) =>
+                    setNewEmployee({ ...newEmployee, phone: e.target.value })
+                  }
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="new-emp-password" className="text-right">
+                  Password
+                </Label>
+                <Input
+                  id="new-emp-password"
+                  type="password"
+                  value={newEmployee.password}
+                  onChange={(e) =>
+                    setNewEmployee({ ...newEmployee, password: e.target.value })
+                  }
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="new-emp-level" className="text-right">
+                  Level
+                </Label>
+                <Select
+                  value={newEmployee.level}
+                  onValueChange={(value: "DMMU" | "BMMU") =>
+                    setNewEmployee({ ...newEmployee, level: value })
+                  }
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DMMU">DMMU</SelectItem>
+                    <SelectItem value="BMMU">BMMU</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="new-emp-post" className="text-right">
+                  Post
+                </Label>
+                <Select
+                  value={newEmployee.postId}
+                  onValueChange={(value) =>
+                    setNewEmployee({ ...newEmployee, postId: value })
+                  }
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select a post" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {posts.map((post) => (
+                      <SelectItem key={post.id} value={post.id}>
+                        {post.name} - {post.location}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="new-emp-designation" className="text-right">
+                  Designation
+                </Label>
+                <Input
+                  id="new-emp-designation"
+                  value={newEmployee.designation}
+                  onChange={(e) =>
+                    setNewEmployee({
+                      ...newEmployee,
+                      designation: e.target.value,
+                    })
+                  }
+                  className="col-span-3"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleCreateEmployee}>Create Employee</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
