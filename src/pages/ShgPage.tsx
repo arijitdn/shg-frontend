@@ -39,29 +39,9 @@ import { useToast } from "../hooks/use-toast";
 import apiClient from "../lib/api";
 import { productCategories } from "../lib/categories";
 import useAuthStore from "@/store/auth.store";
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  price: number;
-  stock: number;
-  type: string;
-  isRecommended?: boolean;
-  isApproved?: boolean;
-  isRejected?: boolean;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  createdAt: string;
-  imageUrl: string;
-  shgId: string;
-  userId: string;
-  remarks?: string;
-}
+import type Product from "@/types/product";
 
 export default function SHGProductsPage() {
-  const [username, setUsername] = useState("");
-  const [shgName, setSHGName] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -85,21 +65,6 @@ export default function SHGProductsPage() {
   async function fetchProducts() {
     const products = await apiClient.get("/products");
     setProducts(products.data);
-  }
-
-  async function getUserAndSHGData() {
-    const { data } = await apiClient.get("/org-auth/get-details");
-    if (!data) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch user and SHG details.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setUsername(data.username);
-    setSHGName(data.shgName);
   }
 
   const filteredProducts = products.filter((product) => {
@@ -295,7 +260,6 @@ export default function SHGProductsPage() {
 
   useEffect(() => {
     fetchProducts();
-    getUserAndSHGData();
   }, []);
 
   return (
@@ -679,7 +643,7 @@ export default function SHGProductsPage() {
                                   </Label>
                                   <div className="mt-2 space-y-1">
                                     <p className="text-sm">
-                                      <strong>Name:</strong> {shgName}
+                                      <strong>Name:</strong> {product.shgName}
                                     </p>
                                     <p className="text-sm">
                                       <strong>ID:</strong> {product.shgId}
@@ -692,7 +656,7 @@ export default function SHGProductsPage() {
                                   </Label>
                                   <div className="mt-2 space-y-1">
                                     <p className="text-sm">
-                                      <strong>Name:</strong> {username}
+                                      <strong>Name:</strong> {product.userName}
                                     </p>
                                     <p className="text-sm">
                                       <strong>ID:</strong> {product.userId}
@@ -702,15 +666,6 @@ export default function SHGProductsPage() {
                               </div>
 
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <Label className="text-sm font-medium">
-                                    Product Specifications
-                                  </Label>
-                                  <div className="mt-2 grid grid-cols-2 gap-2">
-                                    Mock Data
-                                  </div>
-                                </div>
-
                                 <div>
                                   <Label className="text-sm font-medium">
                                     Remarks

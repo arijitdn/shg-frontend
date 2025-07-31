@@ -38,30 +38,10 @@ import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { Separator } from "../components/ui/separator";
 import apiClient from "../lib/api";
-import { toast } from "@/hooks/use-toast";
 import useAuthStore from "@/store/auth.store";
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  price: number;
-  stock: number;
-  type: string;
-  isRecommended?: boolean;
-  isApproved?: boolean;
-  isRejected?: boolean;
-  status: "pending" | "approved" | "rejected";
-  createdAt: string;
-  imageUrl: string;
-  shgId: string;
-  userId: string;
-}
+import type Product from "@/types/product";
 
 export default function VOApprovalPage() {
-  const [username, setUsername] = useState("");
-  const [shgName, setSHGName] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [pendingProducts, setPendingProducts] = useState<Product[]>();
   const [searchTerm, setSearchTerm] = useState("");
@@ -83,21 +63,6 @@ export default function VOApprovalPage() {
       )
     );
   };
-
-  async function getUserAndSHGData() {
-    const { data } = await apiClient.get("/org-auth/get-details");
-    if (!data) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch user and SHG details.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setUsername(data.username);
-    setSHGName(data.shgName);
-  }
 
   const filteredProducts = pendingProducts?.filter((product) => {
     const matchesSearch = product.name
@@ -180,7 +145,6 @@ export default function VOApprovalPage() {
 
   useEffect(() => {
     fetchProducts();
-    getUserAndSHGData();
   }, []);
 
   return (
@@ -269,7 +233,8 @@ export default function VOApprovalPage() {
                 <SelectItem value="all">All Categories</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category} value={category}>
-                    {category}
+                    {category.charAt(0).toUpperCase() +
+                      category.slice(1, category.length)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -315,11 +280,11 @@ export default function VOApprovalPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">SHG:</span>
-                  <span className="font-medium">{product.shgId}</span>
+                  <span className="font-medium">{product.shgName}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Member:</span>
-                  <span className="font-medium">{product.userId}</span>
+                  <span className="font-medium">{product.userName}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Submitted:</span>
@@ -401,7 +366,7 @@ export default function VOApprovalPage() {
                           </Label>
                           <div className="mt-2 space-y-1">
                             <p className="text-sm">
-                              <strong>Name:</strong> {shgName}
+                              <strong>Name:</strong> {product.shgName}
                             </p>
                             <p className="text-sm">
                               <strong>ID:</strong> {product.shgId}
@@ -414,21 +379,12 @@ export default function VOApprovalPage() {
                           </Label>
                           <div className="mt-2 space-y-1">
                             <p className="text-sm">
-                              <strong>Name:</strong> {username}
+                              <strong>Name:</strong> {product.userName}
                             </p>
                             <p className="text-sm">
                               <strong>ID:</strong> {product.userId}
                             </p>
                           </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Product Specifications
-                        </Label>
-                        <div className="mt-2 grid grid-cols-2 gap-2">
-                          Mock Data
                         </div>
                       </div>
 

@@ -50,35 +50,13 @@ import {
   Users,
   Package,
   Calendar,
-  MapPin,
   IndianRupee,
 } from "lucide-react";
 import apiClient from "../lib/api";
-import { toast } from "@/hooks/use-toast";
 import useAuthStore from "@/store/auth.store";
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  price: number;
-  stock: number;
-  type: string;
-  isRecommended?: boolean;
-  isApproved?: boolean;
-  isRejected?: boolean;
-  status: "PENDING" | "APPROVED" | "REJECTED";
-  createdAt: string;
-  imageUrl: string;
-  shgId: string;
-  userId: string;
-  remarks?: string;
-}
+import type Product from "@/types/product";
 
 export default function CLFApprovalPage() {
-  const [username, setUsername] = useState("");
-  const [shgName, setSHGName] = useState("");
   const [voProducts, setVoProducts] = useState<Product[]>([]);
   const [nfcProducts, setNfcProducts] = useState<Product[]>([]);
   const [_selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -95,7 +73,11 @@ export default function CLFApprovalPage() {
     const { data } = await apiClient.get<Product[]>("/products");
     setVoProducts(
       data.filter(
-        (p: Product) => p.isRecommended && !p.isApproved && !p.isRejected
+        (p: Product) =>
+          p.type === "single" &&
+          p.isRecommended &&
+          !p.isApproved &&
+          !p.isRejected
       )
     );
 
@@ -121,40 +103,10 @@ export default function CLFApprovalPage() {
       ].reduce((sum, p) => sum + (p.price / 100) * p.stock, 0)
     );
   };
-  async function getUserAndSHGData() {
-    const { data } = await apiClient.get("/org-auth/get-details");
-    if (!data) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch user and SHG details.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setUsername(data.username);
-    setSHGName(data.shgName);
-  }
 
   useEffect(() => {
     fetchProducts();
-    getUserAndSHGData();
   }, []);
-
-  // useEffect(() => {
-  //   if (statusFilter === "all") {
-  //     fetchProducts();
-  //   } else {
-  //     const filteredVoProducts = voProducts.filter(
-  //       (p) => p.status.toLowerCase() === statusFilter.toLowerCase()
-  //     );
-  //     const filteredNfcProducts = nfcProducts.filter(
-  //       (p) => p.status.toLowerCase() === statusFilter.toLowerCase()
-  //     );
-  //     setVoProducts(filteredVoProducts);
-  //     setNfcProducts(filteredNfcProducts);
-  //   }
-  // }, [statusFilter, searchTerm]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -303,30 +255,20 @@ export default function CLFApprovalPage() {
                 {type === "vo" ? "Individual Name" : "SHG Name"}
               </Label>
               <p className="font-semibold">
-                {type === "vo" ? username : shgName}
+                {type === "vo" ? product.userName : product.shgName}
               </p>
             </div>
             <div>
               <Label className="text-sm font-medium text-gray-600">
                 VO Name
               </Label>
-              <p>Mock VO</p>
+              <p>{product.voName}</p>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <Label className="text-sm font-medium text-gray-600">
-                District
+                CLF Name
               </Label>
-              <p className="flex items-center gap-1">
-                <MapPin className="w-4 h-4" />
-                West Tripura
-              </p>
-            </div>
-            <div>
-              <Label className="text-sm font-medium text-gray-600">Block</Label>
-              <p>Mock Block</p>
+              <p>{product.clfName}</p>
             </div>
           </div>
 
@@ -658,7 +600,6 @@ export default function CLFApprovalPage() {
                   <TableRow>
                     <TableHead>Product Details</TableHead>
                     <TableHead>Individual</TableHead>
-                    {/* <TableHead>VO & Location</TableHead> */}
                     <TableHead>Quantity & Value</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
@@ -680,18 +621,12 @@ export default function CLFApprovalPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <p className="font-medium">
-                          {username} (SHG: {shgName})
+                        <p className="font-medium">{product.userName}</p>
+                        <p>
+                          <span className="font-medium">SHG:</span>{" "}
+                          {product.shgName}
                         </p>
                       </TableCell>
-                      {/* <TableCell>
-                        <div>
-                          <p className="font-medium">{product.voName}</p>
-                          <p className="text-sm text-gray-600">
-                            {product.district}, {product.block}
-                          </p>
-                        </div>
-                      </TableCell> */}
                       <TableCell>
                         <div className="flex gap-1">
                           <p className="font-semibold">{product.stock} x</p>
@@ -728,7 +663,6 @@ export default function CLFApprovalPage() {
                   <TableRow>
                     <TableHead>Product Details</TableHead>
                     <TableHead>SHG</TableHead>
-                    {/* <TableHead>VO & Location</TableHead> */}
                     <TableHead>Quantity & Value</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
@@ -750,18 +684,10 @@ export default function CLFApprovalPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <p className="font-medium">{product.shgId}</p>
+                        <p className="font-medium">{product.shgName}</p>
                       </TableCell>
-                      {/* <TableCell>
-                        <div>
-                          <p className="font-medium">{product.voName}</p>
-                          <p className="text-sm text-gray-600">
-                            {product.district}, {product.block}
-                          </p>
-                        </div>
-                      </TableCell> */}
                       <TableCell>
-                        <div>
+                        <div className="flex gap-1">
                           <p className="font-semibold">{product.stock}</p>
                           <p className="text-sm text-green-600 flex items-center">
                             <IndianRupee className="w-3 h-3" />
