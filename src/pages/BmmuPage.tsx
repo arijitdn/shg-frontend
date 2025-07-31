@@ -68,13 +68,14 @@ import { useUser } from "../hooks/use-user";
 import { organizationApi, productApi } from "../lib/services";
 import { productCategories } from "../lib/categories";
 import useAuthStore from "../store/auth.store";
+import apiClient from "@/lib/api";
 
 // Types
 interface Member {
-  id: string;
   name: string;
   phone: string;
-  joinDate: string;
+  role: "SHG" | "VO" | "CLF";
+  organizationId: string;
 }
 
 interface Organization {
@@ -423,22 +424,27 @@ export default function BMMUDashboard() {
     }
   };
 
-  const addMember = () => {
+  const addMember = async () => {
     if (!selectedOrg) return;
 
     const member: Member = {
-      id: Date.now().toString(),
       name: newMember.name,
       phone: newMember.phone,
-      joinDate: new Date().toISOString().split("T")[0],
+      role: selectedOrg.type,
+      organizationId: selectedOrg.id,
     };
+    try {
+      await apiClient.post("/org-auth/create-member", member);
+      window.location.reload();
+    } catch (error) {
+      console.log(error);
+      toast({
+        title: "Error",
+        description: "Failed to add member",
+        variant: "destructive",
+      });
+    }
 
-    const updatedOrgs = organizations.map((org) =>
-      org.id === selectedOrg.id
-        ? { ...org, members: [...org.members, member] }
-        : org
-    );
-    setOrganizations(updatedOrgs);
     setNewMember({ name: "", phone: "" });
     setIsAddMemberOpen(false);
   };
@@ -700,7 +706,6 @@ export default function BMMUDashboard() {
           <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="organizations">Organizations</TabsTrigger>
-            <TabsTrigger value="members">Members</TabsTrigger>
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="meetings">Meetings</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
@@ -952,59 +957,6 @@ export default function BMMUDashboard() {
                     </TableBody>
                   </Table>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Members Tab */}
-          <TabsContent value="members" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Members Management</CardTitle>
-                <CardDescription>
-                  View and manage all members across organizations
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Organization</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Join Date</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {/* {organizations.flatMap((org) =>
-                      org.members.map((member) => (
-                        <TableRow key={`${org.id}-${member.id}`}>
-                          <TableCell className="font-medium">
-                            {member.name}
-                          </TableCell>
-                          <TableCell>{member.phone}</TableCell>
-                          <TableCell>{org.name}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{org.type}</Badge>
-                          </TableCell>
-                          <TableCell>{member.joinDate}</TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2">
-                              <Button variant="outline" size="sm">
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button variant="outline" size="sm">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )} */}
-                  </TableBody>
-                </Table>
               </CardContent>
             </Card>
           </TabsContent>
