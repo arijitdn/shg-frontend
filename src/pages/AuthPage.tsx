@@ -23,7 +23,7 @@ import { useNavigate } from "react-router-dom";
 import apiClient from "../lib/api";
 import useAuthStore from "../store/auth.store";
 
-export default function HomePage() {
+export default function AuthPage() {
   const [userId, setUserId] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [userRole, setUserRole] = useState("");

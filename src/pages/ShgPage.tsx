@@ -41,7 +41,7 @@ import { productCategories } from "../lib/categories";
 import useAuthStore from "@/store/auth.store";
 import type Product from "@/types/product";
 
-export default function SHGProductsPage() {
+export default function SHGDashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");

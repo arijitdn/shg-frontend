@@ -41,7 +41,7 @@ import apiClient from "../lib/api";
 import useAuthStore from "@/store/auth.store";
 import type Product from "@/types/product";
 
-export default function VOApprovalPage() {
+export default function VODashboard() {
   const [products, setProducts] = useState<Product[]>([]);
   const [pendingProducts, setPendingProducts] = useState<Product[]>();
   const [searchTerm, setSearchTerm] = useState("");

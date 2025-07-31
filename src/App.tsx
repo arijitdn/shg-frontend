@@ -1,13 +1,13 @@
 import { Routes, Route } from "react-router-dom";
-import NicDashboard from "./pages/NicDashboard";
-import SHGProductsPage from "./pages/ShgPage";
-import HomePage from "./pages/HomePage";
+import AuthPage from "./pages/AuthPage";
+import SHGDashboard from "./pages/ShgPage";
+import VODashboard from "./pages/VoPage";
+import CLFDashboard from "./pages/ClfPage";
+import BMMUDashboard from "./pages/BmmuPage";
+import DMMUDashboard from "./pages/DmmuPage";
+import NicDashboard from "./pages/NicPage";
 import HeaderSection from "./components/HeaderSection";
 import Footer from "./components/Footer";
-import VOApprovalPage from "./pages/VoPage";
-import CLFApprovalPage from "./pages/ClfPage";
-import BMMUDashboard from "./pages/BmmuDashboard";
-import DMMUDashboard from "./pages/DmmuPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
@@ -15,12 +15,12 @@ function App() {
     <>
       <HeaderSection />
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<AuthPage />} />
         <Route
           path="/shg"
           element={
             <ProtectedRoute allowedRoles={["SHG"]}>
-              <SHGProductsPage />
+              <SHGDashboard />
             </ProtectedRoute>
           }
         />
@@ -36,7 +36,7 @@ function App() {
           path="/vo"
           element={
             <ProtectedRoute allowedRoles={["VO"]}>
-              <VOApprovalPage />
+              <VODashboard />
             </ProtectedRoute>
           }
         />
@@ -44,7 +44,7 @@ function App() {
           path="/clf"
           element={
             <ProtectedRoute allowedRoles={["CLF"]}>
-              <CLFApprovalPage />
+              <CLFDashboard />
             </ProtectedRoute>
           }
         />
