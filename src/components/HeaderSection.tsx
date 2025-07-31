@@ -24,7 +24,7 @@ export default function HeaderSection() {
 
       {/* User info and logout button */}
       {isAuthenticated && (
-        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 flex items-center gap-3 shadow-lg">
+        <div className="absolute top-6 right-7 bg-white/90 backdrop-blur-sm rounded-lg p-3 flex items-center gap-3 shadow-lg">
           <div className="flex items-center gap-2">
             <User className="w-4 h-4 text-blue-600" />
             <div className="text-sm">

@@ -61,7 +61,6 @@ import {
 } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 import apiClient from "../lib/api";
-import useAuthStore from "@/store/auth.store";
 
 // Types based on backend entities
 interface Post {
@@ -83,7 +82,7 @@ interface Employee {
   status: string;
   joinDate: string;
   postId: string;
-  level: "DMMU" | "BMMU";
+  role: "NIC" | "DMMU" | "BMMU";
   createdAt: string;
   updatedAt: string;
 }
@@ -159,8 +158,6 @@ export default function NICAdminDashboard() {
     loadData();
   }, []);
 
-  const { logout } = useAuthStore();
-
   // Computed values
   const employeesByPost = selectedPost
     ? employees.filter((emp) => {
@@ -173,7 +170,7 @@ export default function NICAdminDashboard() {
     const matchesSearch =
       emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLevel = levelFilter === "all" || emp.level === levelFilter;
+    const matchesLevel = levelFilter === "all" || emp.role === levelFilter;
     return matchesSearch && matchesLevel;
   });
 
@@ -326,22 +323,6 @@ export default function NICAdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div
-        className="relative h-48 bg-cover bg-center"
-        style={{ backgroundImage: "url('/banner.png')" }}
-      >
-        <div className="absolute inset-0 bg-black bg-opacity-40" />
-        <div className="relative z-10 flex items-center justify-center h-full px-6">
-          <div className="text-white text-center">
-            <h1 className="text-2xl font-extrabold">
-              National Informatics Center
-            </h1>
-            <p className="text-sm opacity-90">SHG Portal - Admin Dashboard</p>
-          </div>
-        </div>
-      </div>
-
       {/* Main Content */}
       <div className="container mx-auto px-6 py-8">
         <div className="mb-8">
@@ -349,13 +330,6 @@ export default function NICAdminDashboard() {
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               NIC Admin Dashboard
             </h2>
-            <Button
-              onClick={() => logout()}
-              variant="secondary"
-              className="bg-sky-400 hover:bg-sky-500 text-white"
-            >
-              Logout
-            </Button>
           </div>
           <p className="text-gray-600">
             Manage DMMU/BMMU employees and posts across all government
@@ -363,240 +337,118 @@ export default function NICAdminDashboard() {
           </p>
         </div>
 
-        <Tabs defaultValue="posts" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="posts">Manage Posts</TabsTrigger>
-            <TabsTrigger value="employees-by-post">
-              Employees by Post
-            </TabsTrigger>
-            <TabsTrigger value="all-employees">All Employees</TabsTrigger>
-          </TabsList>
+        <div className="mt-10">
+          <Tabs defaultValue="posts" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="posts">Manage Posts</TabsTrigger>
+              <TabsTrigger value="employees-by-post">
+                Employees by Post
+              </TabsTrigger>
+              <TabsTrigger value="all-employees">All Employees</TabsTrigger>
+            </TabsList>
 
-          {/* Manage Posts Tab */}
-          <TabsContent value="posts">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Posts Management</CardTitle>
-                    <CardDescription>
-                      View and manage all government posts
-                    </CardDescription>
-                  </div>
-                  <Dialog open={isAddingPost} onOpenChange={setIsAddingPost}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add New Post
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Post</DialogTitle>
-                        <DialogDescription>
-                          Create a new government post
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="post-name" className="text-right">
-                            Name
-                          </Label>
-                          <Input
-                            id="post-name"
-                            className="col-span-3"
-                            value={newPost.name}
-                            onChange={(e) =>
-                              setNewPost({ ...newPost, name: e.target.value })
-                            }
-                          />
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="post-location" className="text-right">
-                            Location
-                          </Label>
-                          <Input
-                            id="post-location"
-                            className="col-span-3"
-                            value={newPost.location}
-                            onChange={(e) =>
-                              setNewPost({
-                                ...newPost,
-                                location: e.target.value,
-                              })
-                            }
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button type="submit" onClick={handleCreatePost}>
-                          Create Post
+            {/* Manage Posts Tab */}
+            <TabsContent value="posts">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Posts Management</CardTitle>
+                      <CardDescription>
+                        View and manage all government posts
+                      </CardDescription>
+                    </div>
+                    <Dialog open={isAddingPost} onOpenChange={setIsAddingPost}>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add New Post
                         </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Post Name</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Employees</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8">
-                          Loading posts...
-                        </TableCell>
-                      </TableRow>
-                    ) : posts.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8">
-                          No posts found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      posts.map((post) => (
-                        <TableRow key={post.id}>
-                          <TableCell className="font-medium">
-                            {post.name}
-                          </TableCell>
-                          <TableCell>{post.location}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
-                              {getPostEmployeeCount(post.name)} employees
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem
-                                  onClick={() => setEditingPost(post)}
-                                >
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit Post
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Users className="mr-2 h-4 w-4" />
-                                  View Employees
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-red-600"
-                                  onClick={() => handleDeletePost(post.id)}
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Delete Post
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Employees by Post Tab */}
-          <TabsContent value="employees-by-post">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>DMMU/BMMU Employees by Post</CardTitle>
-                    <CardDescription>
-                      View employees assigned to specific posts
-                    </CardDescription>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add New Post</DialogTitle>
+                          <DialogDescription>
+                            Create a new government post
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="post-name" className="text-right">
+                              Name
+                            </Label>
+                            <Input
+                              id="post-name"
+                              className="col-span-3"
+                              value={newPost.name}
+                              onChange={(e) =>
+                                setNewPost({ ...newPost, name: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label
+                              htmlFor="post-location"
+                              className="text-right"
+                            >
+                              Location
+                            </Label>
+                            <Input
+                              id="post-location"
+                              className="col-span-3"
+                              value={newPost.location}
+                              onChange={(e) =>
+                                setNewPost({
+                                  ...newPost,
+                                  location: e.target.value,
+                                })
+                              }
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button type="submit" onClick={handleCreatePost}>
+                            Create Post
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
                   </div>
-                  <Select value={selectedPost} onValueChange={setSelectedPost}>
-                    <SelectTrigger className="w-[300px]">
-                      <SelectValue placeholder="Select a post" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {posts.map((post) => (
-                        <SelectItem key={post.id} value={post.name}>
-                          {post.name} - {post.location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {selectedPost ? (
+                </CardHeader>
+                <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Phone</TableHead>
-                        <TableHead>Level</TableHead>
-                        <TableHead>Designation</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Join Date</TableHead>
+                        <TableHead>Post Name</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Employees</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
-                            Loading employees...
+                          <TableCell colSpan={4} className="text-center py-8">
+                            Loading posts...
                           </TableCell>
                         </TableRow>
-                      ) : employeesByPost.length === 0 ? (
+                      ) : posts.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
-                            No employees found for this post
+                          <TableCell colSpan={4} className="text-center py-8">
+                            No posts found
                           </TableCell>
                         </TableRow>
                       ) : (
-                        employeesByPost.map((employee) => (
-                          <TableRow key={employee.id}>
+                        posts.map((post) => (
+                          <TableRow key={post.id}>
                             <TableCell className="font-medium">
-                              {employee.name}
+                              {post.name}
                             </TableCell>
-                            <TableCell>{employee.email}</TableCell>
-                            <TableCell>{employee.phone}</TableCell>
+                            <TableCell>{post.location}</TableCell>
                             <TableCell>
-                              <Badge
-                                variant={
-                                  employee.level === "DMMU"
-                                    ? "default"
-                                    : "secondary"
-                                }
-                              >
-                                {employee.level}
+                              <Badge variant="outline">
+                                {getPostEmployeeCount(post.name)} employees
                               </Badge>
-                            </TableCell>
-                            <TableCell>{employee.designation}</TableCell>
-                            <TableCell>
-                              <Badge
-                                variant={
-                                  employee.status === "active"
-                                    ? "default"
-                                    : "destructive"
-                                }
-                              >
-                                {employee.status}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {new Date(employee.joinDate).toLocaleDateString()}
                             </TableCell>
                             <TableCell className="text-right">
                               <DropdownMenu>
@@ -611,37 +463,22 @@ export default function NICAdminDashboard() {
                                 <DropdownMenuContent align="end">
                                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                   <DropdownMenuItem
-                                    onClick={() => setEditingEmployee(employee)}
+                                    onClick={() => setEditingPost(post)}
                                   >
                                     <Edit className="mr-2 h-4 w-4" />
-                                    Edit Details
+                                    Edit Post
                                   </DropdownMenuItem>
                                   <DropdownMenuItem>
-                                    {employee.status === "active" ? (
-                                      <>
-                                        <UserX className="mr-2 h-4 w-4" />
-                                        Disable Account
-                                      </>
-                                    ) : (
-                                      <>
-                                        <UserCheck className="mr-2 h-4 w-4" />
-                                        Enable Account
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Shield className="mr-2 h-4 w-4" />
-                                    Transfer Post
+                                    <Users className="mr-2 h-4 w-4" />
+                                    View Employees
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem
                                     className="text-red-600"
-                                    onClick={() =>
-                                      handleDeleteEmployee(employee.id)
-                                    }
+                                    onClick={() => handleDeletePost(post.id)}
                                   >
                                     <Trash2 className="mr-2 h-4 w-4" />
-                                    Remove Employee
+                                    Delete Post
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -651,173 +488,341 @@ export default function NICAdminDashboard() {
                       )}
                     </TableBody>
                   </Table>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    Please select a post to view employees
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            </TabsContent>
 
-          {/* All Employees Tab */}
-          <TabsContent value="all-employees">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>All DMMU/BMMU Employees</CardTitle>
-                    <CardDescription>
-                      Manage all employees across all posts
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Select value={levelFilter} onValueChange={setLevelFilter}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue placeholder="Level" />
+            {/* Employees by Post Tab */}
+            <TabsContent value="employees-by-post">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>DMMU/BMMU Employees by Post</CardTitle>
+                      <CardDescription>
+                        View employees assigned to specific posts
+                      </CardDescription>
+                    </div>
+                    <Select
+                      value={selectedPost}
+                      onValueChange={setSelectedPost}
+                    >
+                      <SelectTrigger className="w-[300px]">
+                        <SelectValue placeholder="Select a post" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Levels</SelectItem>
-                        <SelectItem value="DMMU">DMMU</SelectItem>
-                        <SelectItem value="BMMU">BMMU</SelectItem>
+                        {posts.map((post) => (
+                          <SelectItem key={post.id} value={post.name}>
+                            {post.name} - {post.location}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search employees..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-8 w-[300px]"
-                      />
-                    </div>
-                    <Button onClick={() => setShowAddEmployee(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Employee
-                    </Button>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Level</TableHead>
-                      <TableHead>Post</TableHead>
-                      <TableHead>Designation</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Join Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8">
-                          Loading employees...
-                        </TableCell>
-                      </TableRow>
-                    ) : filteredEmployees.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8">
-                          No employees found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredEmployees.map((employee) => (
-                        <TableRow key={employee.id}>
-                          <TableCell className="font-medium">
-                            {employee.name}
-                          </TableCell>
-                          <TableCell>{employee.email}</TableCell>
-                          <TableCell>{employee.phone}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                employee.level === "DMMU"
-                                  ? "default"
-                                  : "secondary"
-                              }
-                            >
-                              {employee.level}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {posts.find((p) => p.id === employee.postId)
-                              ?.name || "N/A"}
-                          </TableCell>
-                          <TableCell>{employee.designation}</TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                employee.status === "active"
-                                  ? "default"
-                                  : "destructive"
-                              }
-                            >
-                              {employee.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {new Date(employee.joinDate).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                <DropdownMenuItem
-                                  onClick={() => setEditingEmployee(employee)}
-                                >
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Edit Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  {employee.status === "active" ? (
-                                    <>
-                                      <UserX className="mr-2 h-4 w-4" />
-                                      Disable Account
-                                    </>
-                                  ) : (
-                                    <>
-                                      <UserCheck className="mr-2 h-4 w-4" />
-                                      Enable Account
-                                    </>
-                                  )}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Shield className="mr-2 h-4 w-4" />
-                                  Transfer Post
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-red-600"
-                                  onClick={() =>
-                                    handleDeleteEmployee(employee.id)
+                </CardHeader>
+                <CardContent>
+                  {selectedPost ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead>Level</TableHead>
+                          <TableHead>Designation</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Join Date</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {loading ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8">
+                              Loading employees...
+                            </TableCell>
+                          </TableRow>
+                        ) : employeesByPost.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8">
+                              No employees found for this post
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          employeesByPost.map((employee) => (
+                            <TableRow key={employee.id}>
+                              <TableCell className="font-medium">
+                                {employee.name}
+                              </TableCell>
+                              <TableCell>{employee.email}</TableCell>
+                              <TableCell>{employee.phone}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    employee.role === "DMMU"
+                                      ? "default"
+                                      : "secondary"
                                   }
                                 >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Remove Employee
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                  {employee.role}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{employee.designation}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    employee.status === "active"
+                                      ? "default"
+                                      : "destructive"
+                                  }
+                                >
+                                  {employee.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {new Date(
+                                  employee.joinDate
+                                ).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>
+                                      Actions
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        setEditingEmployee(employee)
+                                      }
+                                    >
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      Edit Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      {employee.status === "active" ? (
+                                        <>
+                                          <UserX className="mr-2 h-4 w-4" />
+                                          Disable Account
+                                        </>
+                                      ) : (
+                                        <>
+                                          <UserCheck className="mr-2 h-4 w-4" />
+                                          Enable Account
+                                        </>
+                                      )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <Shield className="mr-2 h-4 w-4" />
+                                      Transfer Post
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-red-600"
+                                      onClick={() =>
+                                        handleDeleteEmployee(employee.id)
+                                      }
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Remove Employee
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      Please select a post to view employees
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* All Employees Tab */}
+            <TabsContent value="all-employees">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>All DMMU/BMMU Employees</CardTitle>
+                      <CardDescription>
+                        Manage all employees across all posts
+                      </CardDescription>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Select
+                        value={levelFilter}
+                        onValueChange={setLevelFilter}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue placeholder="Level" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Levels</SelectItem>
+                          <SelectItem value="DMMU">DMMU</SelectItem>
+                          <SelectItem value="BMMU">BMMU</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search employees..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-8 w-[300px]"
+                        />
+                      </div>
+                      <Button onClick={() => setShowAddEmployee(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Employee
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Level</TableHead>
+                        <TableHead>Post</TableHead>
+                        <TableHead>Designation</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Join Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-8">
+                            Loading employees...
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                      ) : filteredEmployees.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} className="text-center py-8">
+                            No employees found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredEmployees
+                          .filter((e) => e.role !== "NIC")
+                          .map((employee) => (
+                            <TableRow key={employee.id}>
+                              <TableCell className="font-medium">
+                                {employee.name}
+                              </TableCell>
+                              <TableCell>{employee.email}</TableCell>
+                              <TableCell>{employee.phone}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    employee.role === "DMMU"
+                                      ? "default"
+                                      : "secondary"
+                                  }
+                                >
+                                  {employee.role}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {posts.find((p) => p.id === employee.postId)
+                                  ?.name || "N/A"}
+                              </TableCell>
+                              <TableCell>{employee.designation}</TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    employee.status === "active"
+                                      ? "default"
+                                      : "destructive"
+                                  }
+                                >
+                                  {employee.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {new Date(
+                                  employee.joinDate
+                                ).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>
+                                      Actions
+                                    </DropdownMenuLabel>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        setEditingEmployee(employee)
+                                      }
+                                    >
+                                      <Edit className="mr-2 h-4 w-4" />
+                                      Edit Details
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      {employee.status === "active" ? (
+                                        <>
+                                          <UserX className="mr-2 h-4 w-4" />
+                                          Disable Account
+                                        </>
+                                      ) : (
+                                        <>
+                                          <UserCheck className="mr-2 h-4 w-4" />
+                                          Enable Account
+                                        </>
+                                      )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem>
+                                      <Shield className="mr-2 h-4 w-4" />
+                                      Transfer Post
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-red-600"
+                                      onClick={() =>
+                                        handleDeleteEmployee(employee.id)
+                                      }
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Remove Employee
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
 
         {/* Edit Employee Dialog */}
         <Dialog
@@ -902,7 +907,7 @@ export default function NICAdminDashboard() {
                     </Label>
                     <Select
                       name="emp-level"
-                      defaultValue={editingEmployee.level}
+                      defaultValue={editingEmployee.role}
                     >
                       <SelectTrigger className="col-span-3">
                         <SelectValue />

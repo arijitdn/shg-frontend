@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import NicDashboard from "./pages/NicDashboard";
 import SHGProductsPage from "./pages/ShgPage";
 import HomePage from "./pages/HomePage";
@@ -11,10 +11,9 @@ import DMMUDashboard from "./pages/DmmuPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
-  const location = useLocation();
   return (
     <>
-      {location.pathname !== "/nic" && <HeaderSection />}
+      <HeaderSection />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route
