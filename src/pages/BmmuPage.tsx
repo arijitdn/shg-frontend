@@ -218,6 +218,80 @@ export default function BMMUDashboard() {
     fetchData();
   }, []);
 
+  // Fetch available VOs and CLFs for dropdowns
+  useEffect(() => {
+    const fetchDropdownData = async () => {
+      try {
+        setLoadingVOs(true);
+        setLoadingCLFs(true);
+
+        const [vosResponse, clfsResponse] = await Promise.all([
+          organizationApi.getAllVOs(),
+          organizationApi.getAllCLFs(),
+        ]);
+
+        setAvailableVOs(vosResponse.data || []);
+        setAvailableCLFs(clfsResponse.data || []);
+      } catch (error) {
+        console.error("Error fetching dropdown data:", error);
+      } finally {
+        setLoadingVOs(false);
+        setLoadingCLFs(false);
+      }
+    };
+
+    fetchDropdownData();
+  }, []);
+
+  // Handle VO ID search
+  const searchVOById = async () => {
+    if (!newOrg.voId.trim()) {
+      setVoIdError("Please enter a VO ID");
+      return;
+    }
+
+    setVoIdError("");
+    try {
+      const response = await organizationApi.getVOById(newOrg.voId);
+      if (response.data) {
+        // VO found - auto-populate CLF if available and not already set
+        if (response.data.clfId && !newOrg.clfId) {
+          setNewOrg((prev) => ({
+            ...prev,
+            clfId: response.data.clfId,
+          }));
+        }
+        toast({
+          title: "Success",
+          description: `VO found: ${response.data.name}`,
+        });
+      }
+    } catch (error) {
+      setVoIdError("VO ID not found");
+    }
+  };
+
+  // Handle CLF ID search
+  const searchCLFById = async () => {
+    if (!newOrg.clfId.trim()) {
+      setClfIdError("Please enter a CLF ID");
+      return;
+    }
+
+    setClfIdError("");
+    try {
+      const response = await organizationApi.getCLFById(newOrg.clfId);
+      if (response.data) {
+        toast({
+          title: "Success",
+          description: `CLF found: ${response.data.name}`,
+        });
+      }
+    } catch (error) {
+      setClfIdError("CLF ID not found");
+    }
+  };
+
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState("");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -273,6 +347,18 @@ export default function BMMUDashboard() {
     voId: "",
     clfId: "",
   });
+
+  // State for dropdowns
+  const [availableVOs, setAvailableVOs] = useState<
+    Array<{ groupId: string; name: string; clfId?: string }>
+  >([]);
+  const [availableCLFs, setAvailableCLFs] = useState<
+    Array<{ groupId: string; name: string }>
+  >([]);
+  const [loadingVOs, setLoadingVOs] = useState(false);
+  const [loadingCLFs, setLoadingCLFs] = useState(false);
+  const [voIdError, setVoIdError] = useState("");
+  const [clfIdError, setClfIdError] = useState("");
 
   const [newMember, setNewMember] = useState({
     name: "",
@@ -411,6 +497,8 @@ export default function BMMUDashboard() {
         voId: "",
         clfId: "",
       });
+      setVoIdError("");
+      setClfIdError("");
       setIsCreateOrgOpen(false);
     } catch (error: any) {
       toast({
@@ -1249,8 +1337,8 @@ export default function BMMUDashboard() {
               Add a new SHG, VO, or CLF to the system
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
+          <div className="space-y-4 overflow-y-auto max-h-[70vh] w-full">
+            <div className="px-4">
               <Label htmlFor="org-name">Organization Name *</Label>
               <Input
                 id="org-name"
@@ -1260,7 +1348,7 @@ export default function BMMUDashboard() {
                 required
               />
             </div>
-            <div>
+            <div className="px-4">
               <Label htmlFor="org-type">Type *</Label>
               <Select
                 value={newOrg.type}
@@ -1280,7 +1368,7 @@ export default function BMMUDashboard() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
+            <div className="px-4">
               <Label htmlFor="district">District</Label>
               <Input
                 id="district"
@@ -1292,7 +1380,7 @@ export default function BMMUDashboard() {
               />
             </div>
             {newOrg.type === "SHG" && (
-              <div>
+              <div className="px-4">
                 <Label htmlFor="block">Block</Label>
                 <Input
                   id="block"
@@ -1305,34 +1393,142 @@ export default function BMMUDashboard() {
               </div>
             )}
             {newOrg.type === "SHG" && (
-              <div>
-                <Label htmlFor="voId">VO ID</Label>
-                <Input
-                  id="voId"
-                  value={newOrg.voId}
-                  onChange={(e) =>
-                    setNewOrg({ ...newOrg, voId: e.target.value })
-                  }
-                  placeholder="Enter VO ID (optional)"
-                />
-              </div>
+              <>
+                <div className="px-4">
+                  <Label htmlFor="voId">VO Selection</Label>
+                  <div className="space-y-2">
+                    <Select
+                      value={newOrg.voId}
+                      onValueChange={(value) =>
+                        setNewOrg({ ...newOrg, voId: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            loadingVOs
+                              ? "Loading VOs..."
+                              : "Select a VO (optional)"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableVOs.map((vo) => (
+                          <SelectItem key={vo.groupId} value={vo.groupId}>
+                            {vo.name} (ID: {vo.groupId})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div>
+                      <Label
+                        htmlFor="voIdInput"
+                        className="text-sm text-muted-foreground"
+                      >
+                        Or enter VO ID directly:
+                      </Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="voIdInput"
+                          value={newOrg.voId}
+                          onChange={(e) =>
+                            setNewOrg({ ...newOrg, voId: e.target.value })
+                          }
+                          placeholder="Enter VO ID"
+                          className={
+                            voIdError ? "border-red-500 flex-1" : "flex-1"
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={searchVOById}
+                          disabled={!newOrg.voId.trim()}
+                        >
+                          <Search className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {voIdError && (
+                        <p className="text-sm text-red-500 mt-1">{voIdError}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
             {(newOrg.type === "VO" || newOrg.type === "SHG") && (
-              <div>
-                <Label htmlFor="clfId">CLF ID</Label>
-                <Input
-                  id="clfId"
-                  value={newOrg.clfId}
-                  onChange={(e) =>
-                    setNewOrg({ ...newOrg, clfId: e.target.value })
-                  }
-                  placeholder={`Enter CLF ID ${
-                    newOrg.type === "VO" ? "(required)" : "(optional)"
-                  }`}
-                />
-              </div>
+              <>
+                <div className="px-4">
+                  <Label htmlFor="clfId">CLF Selection</Label>
+                  <div className="space-y-2">
+                    <Select
+                      value={newOrg.clfId}
+                      onValueChange={(value) =>
+                        setNewOrg({ ...newOrg, clfId: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            loadingCLFs
+                              ? "Loading CLFs..."
+                              : `Select a CLF ${
+                                  newOrg.type === "VO"
+                                    ? "(required)"
+                                    : "(optional)"
+                                }`
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCLFs.map((clf) => (
+                          <SelectItem key={clf.groupId} value={clf.groupId}>
+                            {clf.name} (ID: {clf.groupId})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div>
+                      <Label
+                        htmlFor="clfIdInput"
+                        className="text-sm text-muted-foreground"
+                      >
+                        Or enter CLF ID directly:
+                      </Label>
+                      <div className="flex space-x-2">
+                        <Input
+                          id="clfIdInput"
+                          value={newOrg.clfId}
+                          onChange={(e) =>
+                            setNewOrg({ ...newOrg, clfId: e.target.value })
+                          }
+                          placeholder={`Enter CLF ID ${
+                            newOrg.type === "VO" ? "(required)" : "(optional)"
+                          }`}
+                          className={
+                            clfIdError ? "border-red-500 flex-1" : "flex-1"
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={searchCLFById}
+                          disabled={!newOrg.clfId.trim()}
+                        >
+                          <Search className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {clfIdError && (
+                        <p className="text-sm text-red-500 mt-1">
+                          {clfIdError}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end space-x-2 ">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -1345,6 +1541,8 @@ export default function BMMUDashboard() {
                     voId: "",
                     clfId: "",
                   });
+                  setVoIdError("");
+                  setClfIdError("");
                 }}
                 disabled={isLoading}
               >
