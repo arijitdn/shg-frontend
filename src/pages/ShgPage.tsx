@@ -49,6 +49,8 @@ export default function SHGDashboard() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
   const { user } = useAuthStore();
 
@@ -92,6 +94,69 @@ export default function SHGDashboard() {
   };
 
   const handleCreateProduct = async () => {
+    setIsCreating(true);
+
+    // Validate required fields
+    if (!newProduct.name.trim()) {
+      toast({
+        title: "Product name is required",
+        description: "Please enter a product name.",
+        variant: "destructive",
+      });
+      setIsCreating(false);
+      return;
+    }
+
+    if (!newProduct.category) {
+      toast({
+        title: "Category is required",
+        description: "Please select a product category.",
+        variant: "destructive",
+      });
+      setIsCreating(false);
+      return;
+    }
+
+    if (!newProduct.description.trim()) {
+      toast({
+        title: "Description is required",
+        description: "Please enter a product description.",
+        variant: "destructive",
+      });
+      setIsCreating(false);
+      return;
+    }
+
+    if (!newProduct.price || parseFloat(newProduct.price) <= 0) {
+      toast({
+        title: "Valid price is required",
+        description: "Please enter a valid price greater than 0.",
+        variant: "destructive",
+      });
+      setIsCreating(false);
+      return;
+    }
+
+    if (!newProduct.stock || parseInt(newProduct.stock) <= 0) {
+      toast({
+        title: "Valid stock quantity is required",
+        description: "Please enter a valid stock quantity greater than 0.",
+        variant: "destructive",
+      });
+      setIsCreating(false);
+      return;
+    }
+
+    if (!newProduct.type) {
+      toast({
+        title: "Product type is required",
+        description: "Please select a product type.",
+        variant: "destructive",
+      });
+      setIsCreating(false);
+      return;
+    }
+
     const formData = new FormData();
 
     const fileInput = document.getElementById("img") as HTMLInputElement;
@@ -103,6 +168,7 @@ export default function SHGDashboard() {
         description: "Please select an image before submitting.",
         variant: "destructive",
       });
+      setIsCreating(false);
       return;
     }
 
@@ -149,6 +215,8 @@ export default function SHGDashboard() {
           "Failed to upload product. Make sure all fields are filled correctly.",
         variant: "destructive",
       });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -183,71 +251,83 @@ export default function SHGDashboard() {
   const handleUpdateProduct = async () => {
     if (!selectedProduct) return;
 
-    const formData = new FormData();
-    const fileInput = document.getElementById("edit-img") as HTMLInputElement;
-    const file = fileInput?.files?.[0];
-    if (file) {
-      formData.append("image", file);
-    }
+    setIsUpdating(true);
 
-    formData.append("name", selectedProduct.name);
-    formData.append("category", selectedProduct.category);
-    formData.append("description", selectedProduct.description);
-    formData.append(
-      "price",
-      Math.round(
-        parseFloat((selectedProduct.price / 100).toString()) * 100
-      ).toString()
-    );
-    formData.append("stock", selectedProduct.stock.toString());
-    formData.append("type", selectedProduct.type.toLowerCase());
-    formData.append("userId", selectedProduct.userId);
-    formData.append("shgId", selectedProduct.shgId);
+    try {
+      const formData = new FormData();
+      const fileInput = document.getElementById("edit-img") as HTMLInputElement;
+      const file = fileInput?.files?.[0];
+      if (file) {
+        formData.append("image", file);
+      }
 
-    if (selectedProduct.remarks) {
-      formData.append("remarks", selectedProduct.remarks);
-    }
-
-    if (!selectedProduct.isRejected) {
-      await apiClient.patch(
-        `/products/update/${selectedProduct.id}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+      formData.append("name", selectedProduct.name);
+      formData.append("category", selectedProduct.category);
+      formData.append("description", selectedProduct.description);
+      formData.append(
+        "price",
+        Math.round(
+          parseFloat((selectedProduct.price / 100).toString()) * 100
+        ).toString()
       );
-    } else {
-      await apiClient.patch(
-        `/products/reapply/${selectedProduct.id}`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
+      formData.append("stock", selectedProduct.stock.toString());
+      formData.append("type", selectedProduct.type.toLowerCase());
+      formData.append("userId", selectedProduct.userId);
+      formData.append("shgId", selectedProduct.shgId);
+
+      if (selectedProduct.remarks) {
+        formData.append("remarks", selectedProduct.remarks);
+      }
+
+      if (!selectedProduct.isRejected) {
+        await apiClient.patch(
+          `/products/update/${selectedProduct.id}`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+      } else {
+        await apiClient.patch(
+          `/products/reapply/${selectedProduct.id}`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
+      }
+
+      const updatedProducts = products.map((product) =>
+        product.id === selectedProduct.id ? selectedProduct : product
       );
-    }
+      setProducts(updatedProducts);
+      setIsEditDialogOpen(false);
+      setSelectedProduct(null);
 
-    const updatedProducts = products.map((product) =>
-      product.id === selectedProduct.id ? selectedProduct : product
-    );
-    setProducts(updatedProducts);
-    setIsEditDialogOpen(false);
-    setSelectedProduct(null);
-
-    if (selectedProduct.isRejected) {
+      if (selectedProduct.isRejected) {
+        toast({
+          title: "Product sent for review",
+          description:
+            "Your product has been sent for review, please wait for the decision.",
+        });
+      } else {
+        toast({
+          title: "Product Updated",
+          description: "Product details have been updated successfully.",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Product sent for review",
-        description:
-          "Your product has been sent for review, please wait for the decision.",
+        title: "Error",
+        description: "Failed to update product. Please try again.",
+        variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Product Updated",
-        description: "Product details have been updated successfully.",
-      });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -399,10 +479,20 @@ export default function SHGDashboard() {
               <Button
                 variant="outline"
                 onClick={() => setIsCreateDialogOpen(false)}
+                disabled={isCreating}
               >
                 Cancel
               </Button>
-              <Button onClick={handleCreateProduct}>Create Product</Button>
+              <Button onClick={handleCreateProduct} disabled={isCreating}>
+                {isCreating ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Creating...
+                  </>
+                ) : (
+                  "Create Product"
+                )}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -848,13 +938,23 @@ export default function SHGDashboard() {
             <Button
               variant="outline"
               onClick={() => setIsEditDialogOpen(false)}
+              disabled={isUpdating}
             >
               Cancel
             </Button>
-            <Button onClick={handleUpdateProduct}>
-              {selectedProduct?.isRejected
-                ? "Reapply for Review"
-                : "Update Product"}
+            <Button onClick={handleUpdateProduct} disabled={isUpdating}>
+              {isUpdating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  {selectedProduct?.isRejected
+                    ? "Reapplying..."
+                    : "Updating..."}
+                </>
+              ) : selectedProduct?.isRejected ? (
+                "Reapply for Review"
+              ) : (
+                "Update Product"
+              )}
             </Button>
           </div>
         </DialogContent>

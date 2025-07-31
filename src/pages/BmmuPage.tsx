@@ -105,6 +105,7 @@ interface Product {
   type?: string;
   stock?: number;
   userId?: string;
+  userName?: string;
   createdAt?: string;
   remarks?: string;
 }
@@ -187,8 +188,11 @@ export default function BMMUDashboard() {
             name: product.name,
             shgId: product.shgId,
             shgName: product.shgName || "Unknown SHG",
+            type: product.type || "N/A",
             category: product.category,
             price: product.price,
+            userId: product.userId || "N/A",
+            userName: product.userName || "N/A",
             quantity: product.stock || product.quantity || 0,
             description: product.description,
             uploadDate: product.createdAt
@@ -341,6 +345,10 @@ export default function BMMUDashboard() {
   const [viewingOrg, setViewingOrg] = useState<Organization | null>(null);
   const [orgMembers, setOrgMembers] = useState<any[]>([]);
   const [loadingOrgDetails, setLoadingOrgDetails] = useState(false);
+  const [isViewProductOpen, setIsViewProductOpen] = useState(false);
+  const [isEditProductOpen, setIsEditProductOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isUpdatingProduct, setIsUpdatingProduct] = useState(false);
 
   // Form states
   const [newOrg, setNewOrg] = useState({
@@ -548,6 +556,71 @@ export default function BMMUDashboard() {
       });
     } finally {
       setLoadingOrgDetails(false);
+    }
+  };
+
+  // Handle viewing product details
+  const viewProductDetails = (product: Product) => {
+    setSelectedProduct(product);
+    setIsViewProductOpen(true);
+  };
+
+  // Handle editing product
+  const editProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setIsEditProductOpen(true);
+  };
+
+  // Handle updating product
+  const updateProduct = async () => {
+    if (!selectedProduct) return;
+
+    setIsUpdatingProduct(true);
+
+    try {
+      const formData = new FormData();
+
+      // Check if image file was uploaded
+      const fileInput = document.getElementById(
+        "edit-product-image"
+      ) as HTMLInputElement;
+      const file = fileInput?.files?.[0];
+      if (file) {
+        formData.append("image", file);
+      }
+
+      formData.append("name", selectedProduct.name);
+      formData.append("description", selectedProduct.description);
+      formData.append("type", selectedProduct.type || "");
+
+      await apiClient.patch(
+        `/products/update/${selectedProduct.id}`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      toast({
+        title: "Success",
+        description: "Product updated successfully",
+      });
+
+      // Refresh products list and close dialog
+      fetchData();
+      setIsEditProductOpen(false);
+      setSelectedProduct(null);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description:
+          error.response?.data?.message || "Failed to update product",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpdatingProduct(false);
     }
   };
 
@@ -1174,10 +1247,18 @@ export default function BMMUDashboard() {
                           <TableCell>{product.uploadDate}</TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
-                              <Button variant="outline" size="sm">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => viewProductDetails(product)}
+                              >
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              <Button variant="outline" size="sm">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => editProduct(product)}
+                              >
                                 <Edit className="w-4 h-4" />
                               </Button>
                             </div>
@@ -2109,6 +2190,312 @@ export default function BMMUDashboard() {
                   }}
                 >
                   Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Product Details Dialog */}
+      <Dialog open={isViewProductOpen} onOpenChange={setIsViewProductOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Product Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about {selectedProduct?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedProduct && (
+            <div className="space-y-6">
+              {/* Product Image and Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Product Image
+                  </Label>
+                  {selectedProduct.imageUrl ? (
+                    <img
+                      src={selectedProduct.imageUrl}
+                      alt={selectedProduct.name}
+                      className="w-full h-64 object-cover rounded-lg border mt-2"
+                    />
+                  ) : (
+                    <div className="w-full h-64 bg-gray-200 rounded-lg border flex items-center justify-center mt-2">
+                      <Package className="w-16 h-16 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      Product Name
+                    </Label>
+                    <p className="text-xl font-semibold">
+                      {selectedProduct.name}
+                    </p>
+                  </div>
+                  <div className="space-x-3">
+                    <Badge variant="outline" className="text-sm">
+                      {selectedProduct.category?.toUpperCase() || "N/A"}
+                    </Badge>
+                    <Badge
+                      variant={
+                        selectedProduct.status === "APPROVED"
+                          ? "default"
+                          : selectedProduct.status === "PENDING"
+                          ? "secondary"
+                          : "destructive"
+                      }
+                      className="text-sm"
+                    >
+                      {selectedProduct.status}
+                    </Badge>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      Product Type
+                    </Label>
+                    <p className="text-lg">
+                      {selectedProduct.type?.toUpperCase() || "N/A"}
+                    </p>
+                  </div>
+                  <div className="space-x-3">
+                    <Label className="text-sm font-medium text-gray-600">
+                      Description
+                    </Label>
+                    <p className="text-sm text-gray-700">
+                      {selectedProduct.description || "No description provided"}
+                    </p>
+                  </div>
+                  <div className="space-x-3">
+                    <Label className="text-sm font-medium text-gray-600">
+                      Remarks (If any)
+                    </Label>
+                    <p className="text-sm text-gray-700">
+                      {selectedProduct.remarks || "No remarks provided"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Product Details */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t pt-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Price
+                  </Label>
+                  <p className="text-2xl font-bold text-green-600">
+                    ₹{(selectedProduct.price / 100).toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Stock Quantity
+                  </Label>
+                  <p className="text-xl font-semibold">
+                    {selectedProduct.quantity}
+                  </p>
+                </div>
+              </div>
+
+              {/* SHG Information */}
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-semibold mb-3">SHG Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      SHG Name
+                    </Label>
+                    <p className="text-lg">{selectedProduct.shgName}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      SHG Group ID
+                    </Label>
+                    <p className="text-lg">{selectedProduct.shgId}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Member Information (if individual product) */}
+              {selectedProduct.userName !== "N/A" && (
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-3">
+                    Member Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">
+                        Member Name
+                      </Label>
+                      <p className="text-lg">{selectedProduct.userName}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">
+                        Member ID
+                      </Label>
+                      <p className="text-lg">{selectedProduct.userId}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex justify-end border-t pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsViewProductOpen(false);
+                    setSelectedProduct(null);
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Product Dialog */}
+      <Dialog open={isEditProductOpen} onOpenChange={setIsEditProductOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+            <DialogDescription>
+              Update product information (Name, Description, Type only)
+            </DialogDescription>
+          </DialogHeader>
+          {selectedProduct && (
+            <div className="space-y-4">
+              {/* Product Image Upload */}
+              <div>
+                <Label htmlFor="edit-product-image">
+                  Product Image (Optional)
+                </Label>
+                <Input
+                  id="edit-product-image"
+                  type="file"
+                  accept="image/*"
+                  className="mt-1"
+                />
+                {selectedProduct.imageUrl && (
+                  <div className="mt-2">
+                    <img
+                      src={selectedProduct.imageUrl}
+                      alt="Current product image"
+                      className="w-32 h-32 object-cover rounded-md border"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">Current image</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Editable Fields */}
+              <div>
+                <Label htmlFor="edit-product-name">Product Name *</Label>
+                <Input
+                  id="edit-product-name"
+                  value={selectedProduct.name}
+                  onChange={(e) =>
+                    setSelectedProduct({
+                      ...selectedProduct,
+                      name: e.target.value,
+                    })
+                  }
+                  placeholder="Enter product name"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-product-description">Description *</Label>
+                <Textarea
+                  id="edit-product-description"
+                  value={selectedProduct.description}
+                  onChange={(e) =>
+                    setSelectedProduct({
+                      ...selectedProduct,
+                      description: e.target.value,
+                    })
+                  }
+                  placeholder="Enter product description"
+                  rows={4}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="edit-product-type">Product Type *</Label>
+                <Select
+                  value={selectedProduct.type || ""}
+                  onValueChange={(value) =>
+                    setSelectedProduct({ ...selectedProduct, type: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select product type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="single">Single</SelectItem>
+                    <SelectItem value="nfc">NFC</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Read-only fields for context */}
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium text-gray-600 mb-2">
+                  Read-only Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <Label className="text-xs text-gray-500">Price</Label>
+                    <p>₹{(selectedProduct.price / 100).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Stock</Label>
+                    <p>{selectedProduct.quantity}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">SHG</Label>
+                    <p>{selectedProduct.shgName}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-500">Category</Label>
+                    <p>
+                      {selectedProduct.category.charAt(0).toUpperCase() +
+                        selectedProduct.category.slice(1)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditProductOpen(false);
+                    setSelectedProduct(null);
+                  }}
+                  disabled={isUpdatingProduct}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={updateProduct}
+                  disabled={
+                    isUpdatingProduct ||
+                    !selectedProduct.name.trim() ||
+                    !selectedProduct.description.trim()
+                  }
+                >
+                  {isUpdatingProduct ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Updating...
+                    </>
+                  ) : (
+                    "Update Product"
+                  )}
                 </Button>
               </div>
             </div>
