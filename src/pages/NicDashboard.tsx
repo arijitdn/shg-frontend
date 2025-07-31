@@ -187,7 +187,6 @@ export default function NICAdminDashboard() {
       setPosts(postsResponse.data || []);
       setEmployees(employeesResponse.data || []);
     } catch (error) {
-      console.error("Error loading data:", error);
       toast({
         title: "Error",
         description: "Failed to load data",
@@ -209,7 +208,6 @@ export default function NICAdminDashboard() {
       setIsAddingPost(false);
       loadData();
     } catch (error) {
-      console.error("Error creating post:", error);
       toast({
         title: "Error",
         description: "Failed to create post",
@@ -238,7 +236,6 @@ export default function NICAdminDashboard() {
       setShowAddEmployee(false);
       loadData();
     } catch (error) {
-      console.error("Error creating employee:", error);
       toast({
         title: "Error",
         description: "Failed to create employee",
@@ -260,7 +257,6 @@ export default function NICAdminDashboard() {
       setEditingEmployee(null);
       loadData();
     } catch (error) {
-      console.error("Error updating employee:", error);
       toast({
         title: "Error",
         description: "Failed to update employee",
@@ -278,7 +274,6 @@ export default function NICAdminDashboard() {
       });
       loadData();
     } catch (error) {
-      console.error("Error deleting employee:", error);
       toast({
         title: "Error",
         description: "Failed to delete employee",
@@ -297,7 +292,6 @@ export default function NICAdminDashboard() {
       setEditingPost(null);
       loadData();
     } catch (error) {
-      console.error("Error updating post:", error);
       toast({
         title: "Error",
         description: "Failed to update post",
@@ -315,7 +309,6 @@ export default function NICAdminDashboard() {
       });
       loadData();
     } catch (error) {
-      console.error("Error deleting post:", error);
       toast({
         title: "Error",
         description: "Failed to delete post",

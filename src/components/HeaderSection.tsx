@@ -31,8 +31,9 @@ export default function HeaderSection() {
               <div className="font-semibold text-gray-800">
                 {user.name || "User"}
               </div>
-              <div className="text-gray-600 uppercase text-xs">
-                {user.userId} - {user.role}
+              <div className="text-gray-600 text-xs">
+                {user.userId ?? user.email?.toLowerCase()} -{" "}
+                {user.role?.toUpperCase()}
               </div>
             </div>
           </div>

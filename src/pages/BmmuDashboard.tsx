@@ -199,10 +199,6 @@ export default function BMMUDashboard() {
         );
         setProducts(formattedProducts);
       } catch (productError) {
-        console.log(
-          "No products found or error fetching products:",
-          productError
-        );
         setProducts([]);
       }
     } catch (error: any) {

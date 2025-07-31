@@ -134,7 +134,6 @@ export default function DMMUDashboard() {
         },
       ]);
     } catch (error) {
-      console.error("Error loading data:", error);
       toast({
         title: "Error",
         description: "Failed to load data",
@@ -187,7 +186,6 @@ export default function DMMUDashboard() {
         });
         setSelectedProducts([]);
       } catch (error) {
-        console.error("Error creating bulk order:", error);
         toast({
           title: "Error",
           description: "Failed to create bulk order",
@@ -338,7 +336,6 @@ export default function DMMUDashboard() {
         description: "PDF report exported successfully!",
       });
     } catch (error) {
-      console.error("Error generating PDF:", error);
       toast({
         title: "Error",
         description: "Failed to generate PDF report",
@@ -457,7 +454,6 @@ export default function DMMUDashboard() {
         description: "Data exported to PDF successfully!",
       });
     } catch (error) {
-      console.error("Error exporting data:", error);
       toast({
         title: "Error",
         description: "Failed to export data",
@@ -546,7 +542,6 @@ export default function DMMUDashboard() {
         description: "SHG details exported successfully!",
       });
     } catch (error) {
-      console.error("Error exporting SHG details:", error);
       toast({
         title: "Error",
         description: "Failed to export SHG details",

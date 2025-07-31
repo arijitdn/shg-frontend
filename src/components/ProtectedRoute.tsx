@@ -41,7 +41,6 @@ export default function ProtectedRoute({
 
         setIsLoading(false);
       } catch (error) {
-        // Token is invalid, remove it and redirect
         logout();
         navigate("/");
       }
