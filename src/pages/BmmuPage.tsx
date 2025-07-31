@@ -298,14 +298,16 @@ export default function BMMUDashboard() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [productSearchTerm, setProductSearchTerm] = useState("");
+  const [shgIdFilter, setShgIdFilter] = useState("");
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
 
-  // Filter products based on search term
+  // Filter products based on search term and SHG ID filter
   useEffect(() => {
-    if (!productSearchTerm.trim()) {
-      setFilteredProducts(products);
-    } else {
-      const filtered = products.filter(
+    let filtered = products;
+
+    // Apply general search filter
+    if (productSearchTerm.trim()) {
+      filtered = filtered.filter(
         (product) =>
           product.name
             .toLowerCase()
@@ -317,9 +319,17 @@ export default function BMMUDashboard() {
             .toLowerCase()
             .includes(productSearchTerm.toLowerCase())
       );
-      setFilteredProducts(filtered);
     }
-  }, [products, productSearchTerm]);
+
+    // Apply SHG ID filter
+    if (shgIdFilter.trim()) {
+      filtered = filtered.filter((product) =>
+        product.shgId.toLowerCase().includes(shgIdFilter.toLowerCase())
+      );
+    }
+
+    setFilteredProducts(filtered);
+  }, [products, productSearchTerm, shgIdFilter]);
 
   const [meetings, setMeetings] = useState<Meeting[]>([
     {
@@ -1181,17 +1191,69 @@ export default function BMMUDashboard() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {/* Search Bar */}
-                <div className="flex items-center space-x-2 mb-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search products by name, SHG, or category..."
-                      value={productSearchTerm}
-                      onChange={(e) => setProductSearchTerm(e.target.value)}
-                      className="pl-8"
-                    />
+                {/* Search Bars */}
+                <div className="space-y-4 mb-4">
+                  {/* General Search */}
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search products by name, SHG, or category..."
+                        value={productSearchTerm}
+                        onChange={(e) => setProductSearchTerm(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
                   </div>
+
+                  {/* SHG ID Specific Search */}
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <Building2 className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Filter by SHG ID (e.g., SHG001)..."
+                        value={shgIdFilter}
+                        onChange={(e) => setShgIdFilter(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShgIdFilter("")}
+                      disabled={!shgIdFilter}
+                      className="px-3"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+
+                  {/* Active Filters Display */}
+                  {(productSearchTerm || shgIdFilter) && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-600">
+                      <span>Active filters:</span>
+                      {productSearchTerm && (
+                        <Badge variant="secondary" className="text-xs">
+                          Search: "{productSearchTerm}"
+                        </Badge>
+                      )}
+                      {shgIdFilter && (
+                        <Badge variant="secondary" className="text-xs">
+                          SHG ID: "{shgIdFilter}"
+                        </Badge>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setProductSearchTerm("");
+                          setShgIdFilter("");
+                        }}
+                        className="h-6 px-2 text-xs"
+                      >
+                        Clear all
+                      </Button>
+                    </div>
+                  )}
                 </div>
 
                 <Table>
