@@ -19,7 +19,7 @@ export default function AuthProvider({ children }: AuthProviderProps) {
 
       try {
         // Verify token and get user profile
-        const response = await apiClient.get("/shg-auth/profile");
+        const response = await apiClient.get("/org-auth/profile");
         const userData = response.data;
 
         setAuthentication(true, userData);

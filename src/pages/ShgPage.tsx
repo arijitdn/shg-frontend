@@ -88,7 +88,7 @@ export default function SHGProductsPage() {
   }
 
   async function getUserAndSHGData() {
-    const { data } = await apiClient.get("/shg-auth/get-details");
+    const { data } = await apiClient.get("/org-auth/get-details");
     if (!data) {
       toast({
         title: "Error",

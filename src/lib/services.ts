@@ -69,28 +69,28 @@ export const organizationApi = {
 // Auth API functions
 export const authApi = {
   async createMember(data: any) {
-    return apiClient.post("/shg-auth/create-member", data);
+    return apiClient.post("/org-auth/create-member", data);
   },
 
   async createAdmin(data: any) {
-    return apiClient.post("/shg-auth/create-admin", data);
+    return apiClient.post("/org-auth/create-admin", data);
   },
 
   async login(data: any) {
-    return apiClient.post("/shg-auth/login", data);
+    return apiClient.post("/org-auth/login", data);
   },
 
   async refreshToken(refreshToken: string) {
-    return apiClient.post("/shg-auth/refresh", { refreshToken });
+    return apiClient.post("/org-auth/refresh", { refreshToken });
   },
 
   async getProfile() {
-    return apiClient.get("/shg-auth/profile");
+    return apiClient.get("/org-auth/profile");
   },
 
   async getDetails(userId: string, shgId: string) {
     return apiClient.get(
-      `/shg-auth/get-details?userId=${userId}&shgId=${shgId}`
+      `/org-auth/get-details?userId=${userId}&shgId=${shgId}`
     );
   },
 };

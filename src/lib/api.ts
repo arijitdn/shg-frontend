@@ -37,7 +37,7 @@ const refreshAuth = async (_failedRequest: any): Promise<void> => {
     }
 
     const response: AxiosResponse<{ accessToken: string }> = await axios.post(
-      "/shg-auth/refresh",
+      "/org-auth/refresh",
       { refreshToken },
       {
         baseURL: API_BASE_URL,

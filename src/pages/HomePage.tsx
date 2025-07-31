@@ -84,7 +84,7 @@ export default function HomePage() {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post("/shg-auth/login", {
+      const response = await apiClient.post("/org-auth/login", {
         userId,
         password,
         role: userRole,
@@ -123,7 +123,7 @@ export default function HomePage() {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post("/shg-auth/login", {
+      const response = await apiClient.post("/org-auth/login", {
         email: adminEmail,
         password,
         role: adminRole,
