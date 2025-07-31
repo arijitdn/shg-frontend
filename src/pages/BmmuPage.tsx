@@ -337,6 +337,10 @@ export default function BMMUDashboard() {
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [isScheduleMeetingOpen, setIsScheduleMeetingOpen] = useState(false);
+  const [isViewOrgOpen, setIsViewOrgOpen] = useState(false);
+  const [viewingOrg, setViewingOrg] = useState<Organization | null>(null);
+  const [orgMembers, setOrgMembers] = useState<any[]>([]);
+  const [loadingOrgDetails, setLoadingOrgDetails] = useState(false);
 
   // Form states
   const [newOrg, setNewOrg] = useState({
@@ -509,6 +513,41 @@ export default function BMMUDashboard() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle viewing organization details
+  const viewOrganizationDetails = async (org: Organization) => {
+    setViewingOrg(org);
+    setIsViewOrgOpen(true);
+    setLoadingOrgDetails(true);
+
+    try {
+      // Fetch organization members based on type
+      let membersResponse;
+      if (org.type === "SHG") {
+        membersResponse = await apiClient.get(`/shg/members/${org.id}`);
+      } else if (org.type === "VO") {
+        membersResponse = await apiClient.get(`/vo/members/${org.id}`);
+      } else if (org.type === "CLF") {
+        membersResponse = await apiClient.get(`/clf/members/${org.id}`);
+      }
+
+      if (membersResponse?.data) {
+        setOrgMembers(membersResponse.data);
+      } else {
+        setOrgMembers([]);
+      }
+    } catch (error) {
+      console.error("Error fetching organization members:", error);
+      setOrgMembers([]);
+      toast({
+        title: "Warning",
+        description: "Could not load organization members",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingOrgDetails(false);
     }
   };
 
@@ -1034,8 +1073,12 @@ export default function BMMUDashboard() {
                                 >
                                   <UserPlus className="w-4 h-4" />
                                 </Button>
-                                <Button variant="outline" size="sm">
-                                  <Edit className="w-4 h-4" />
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => viewOrganizationDetails(org)}
+                                >
+                                  <Eye className="w-4 h-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -1865,7 +1908,7 @@ export default function BMMUDashboard() {
                       onSelect={(date) =>
                         date && setNewMeeting({ ...newMeeting, date })
                       }
-                      initialFocus
+                      autoFocus
                     />
                   </PopoverContent>
                 </Popover>
@@ -1903,6 +1946,173 @@ export default function BMMUDashboard() {
               <Button onClick={scheduleMeeting}>Schedule Meeting</Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Organization Details Dialog */}
+      <Dialog open={isViewOrgOpen} onOpenChange={setIsViewOrgOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Organization Details</DialogTitle>
+            <DialogDescription>
+              Detailed information about {viewingOrg?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {viewingOrg && (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Organization Name
+                  </Label>
+                  <p className="text-lg font-semibold">{viewingOrg.name}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Organization ID
+                  </Label>
+                  <p className="text-lg">{viewingOrg.id}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Type
+                  </Label>
+                  <Badge variant="outline" className="text-sm">
+                    {viewingOrg.type}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">
+                    Total Members
+                  </Label>
+                  <p className="text-lg font-semibold">{orgMembers.length}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-600">
+                    District
+                  </Label>
+                  <p className="text-lg">{viewingOrg.district || "N/A"}</p>
+                </div>
+                {viewingOrg.block && (
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      Block
+                    </Label>
+                    <p className="text-lg">{viewingOrg.block}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Parent Organization Information */}
+              {(viewingOrg.type === "SHG" || viewingOrg.type === "VO") &&
+                viewingOrg.clfId && (
+                  <div className="border-t pt-4">
+                    <h3 className="text-lg font-semibold mb-3">
+                      Parent Organizations
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">
+                          CLF Name
+                        </Label>
+                        <p className="text-lg">
+                          {organizations.find(
+                            (org) => org.id === viewingOrg.clfId
+                          )?.name || "Loading..."}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="text-sm font-medium text-gray-600">
+                          CLF ID
+                        </Label>
+                        <p className="text-lg">{viewingOrg.clfId}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              {viewingOrg.type === "SHG" && viewingOrg.voId && (
+                <div className="grid grid-cols-2 gap-4 border-t pt-4">
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      VO Name
+                    </Label>
+                    <p className="text-lg">
+                      {organizations.find((org) => org.id === viewingOrg.voId)
+                        ?.name || "Loading..."}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-gray-600">
+                      VO ID
+                    </Label>
+                    <p className="text-lg">{viewingOrg.voId}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Members Table */}
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-semibold mb-3">Members</h3>
+                {loadingOrgDetails ? (
+                  <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                    <span className="ml-2">Loading members...</span>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Member ID</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Phone Number</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orgMembers.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={4}
+                            className="text-center py-8 text-gray-500"
+                          >
+                            No members found for this organization
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        orgMembers.map((member, index) => (
+                          <TableRow key={member.userId || index}>
+                            <TableCell className="font-medium">
+                              {member.userId || `Member-${index + 1}`}
+                            </TableCell>
+                            <TableCell>{member.name || "N/A"}</TableCell>
+                            <TableCell>{member.phone || "N/A"}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">Active</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsViewOrgOpen(false);
+                    setViewingOrg(null);
+                    setOrgMembers([]);
+                  }}
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
