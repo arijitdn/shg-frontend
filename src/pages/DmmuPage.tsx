@@ -52,7 +52,8 @@ import {
   ShoppingCart,
   Users,
 } from "lucide-react";
-import { organizationApi, productApi } from "../lib/services";
+import { organizationApi, productApi, activitiesApi } from "../lib/services";
+import apiClient from "../lib/api";
 import { useToast } from "../hooks/use-toast";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -67,6 +68,10 @@ export default function DMMUDashboard() {
   const [clfs, setCLFs] = useState<any[]>([]);
   const [allProducts, setAllProducts] = useState<any[]>([]);
   const [meetings, setMeetings] = useState<any[]>([]);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [shgMembers, setSHGMembers] = useState<{ [key: string]: any[] }>({});
+  const [voMembers, setVOMembers] = useState<{ [key: string]: any[] }>({});
+  const [clfMembers, setCLFMembers] = useState<{ [key: string]: any[] }>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
 
@@ -93,19 +98,26 @@ export default function DMMUDashboard() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load SHGs, VOs, CLFs, and products in parallel
-      const [shgResponse, voResponse, clfResponse, productResponse] =
-        await Promise.all([
-          organizationApi.getAllSHGs(),
-          organizationApi.getAllVOs(),
-          organizationApi.getAllCLFs(),
-          productApi.getAllProducts(),
-        ]);
+      // Load SHGs, VOs, CLFs, products, and activities in parallel
+      const [
+        shgResponse,
+        voResponse,
+        clfResponse,
+        productResponse,
+        activitiesResponse,
+      ] = await Promise.all([
+        organizationApi.getAllSHGs(),
+        organizationApi.getAllVOs(),
+        organizationApi.getAllCLFs(),
+        productApi.getAllProducts(),
+        activitiesApi.getRecentActivities(),
+      ]);
 
       setSHGs(shgResponse.data || []);
       setVOs(voResponse.data || []);
       setCLFs(clfResponse.data || []);
       setAllProducts(productResponse.data || []);
+      setRecentActivities((activitiesResponse as any).data || []);
 
       setMeetings([
         {
@@ -133,6 +145,15 @@ export default function DMMUDashboard() {
           status: "Scheduled",
         },
       ]);
+
+      // Fetch members for each SHG
+      await fetchSHGMembers(shgResponse.data || []);
+
+      // Fetch members for each VO
+      await fetchVOMembers(voResponse.data || []);
+
+      // Fetch members for each CLF
+      await fetchCLFMembers(clfResponse.data || []);
     } catch (error) {
       toast({
         title: "Error",
@@ -143,12 +164,112 @@ export default function DMMUDashboard() {
       setLoading(false);
     }
   };
-  const shgProducts = allProducts.reduce((acc: any, product: any) => {
-    const shgId = product.shgId || product.userId;
-    if (!acc[shgId]) {
-      acc[shgId] = [];
+
+  // Function to fetch members for all SHGs
+  const fetchSHGMembers = async (shgList: any[]) => {
+    const membersData: { [key: string]: any[] } = {};
+
+    for (const shg of shgList) {
+      try {
+        const membersResponse = await apiClient.get(`/shg/members/${shg.id}`);
+        if (membersResponse?.data) {
+          membersData[shg.id] = membersResponse.data;
+        } else {
+          membersData[shg.id] = [];
+        }
+      } catch (error) {
+        console.error(`Error fetching members for SHG ${shg.id}:`, error);
+        membersData[shg.id] = [];
+      }
     }
-    acc[shgId].push(product);
+
+    setSHGMembers(membersData);
+  };
+
+  // Function to fetch members for all VOs
+  const fetchVOMembers = async (voList: any[]) => {
+    const membersData: { [key: string]: any[] } = {};
+
+    for (const vo of voList) {
+      try {
+        const membersResponse = await apiClient.get(`/vo/members/${vo.id}`);
+        if (membersResponse?.data) {
+          membersData[vo.id] = membersResponse.data;
+        } else {
+          membersData[vo.id] = [];
+        }
+      } catch (error) {
+        console.error(`Error fetching members for VO ${vo.id}:`, error);
+        membersData[vo.id] = [];
+      }
+    }
+
+    setVOMembers(membersData);
+  };
+
+  // Function to fetch members for all CLFs
+  const fetchCLFMembers = async (clfList: any[]) => {
+    const membersData: { [key: string]: any[] } = {};
+
+    for (const clf of clfList) {
+      try {
+        const membersResponse = await apiClient.get(`/clf/members/${clf.id}`);
+        if (membersResponse?.data) {
+          membersData[clf.id] = membersResponse.data;
+        } else {
+          membersData[clf.id] = [];
+        }
+      } catch (error) {
+        console.error(`Error fetching members for CLF ${clf.id}:`, error);
+        membersData[clf.id] = [];
+      }
+    }
+
+    setCLFMembers(membersData);
+  };
+
+  // Helper function to format time ago
+  const formatTimeAgo = (timestamp: string) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInSeconds = Math.floor((now.getTime() - time.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return "Just now";
+    if (diffInSeconds < 3600)
+      return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400)
+      return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 604800)
+      return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    return time.toLocaleDateString();
+  };
+
+  // Helper function to get activity color
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case "registration":
+        return "bg-green-500";
+      case "product_approval":
+        return "bg-blue-500";
+      case "meeting":
+        return "bg-purple-500";
+      case "order":
+        return "bg-orange-500";
+      case "training":
+        return "bg-indigo-500";
+      default:
+        return "bg-gray-500";
+    }
+  };
+
+  const shgProducts = allProducts.reduce((acc: any, product: any) => {
+    const shgGroupId = product.shgId;
+    if (shgGroupId && !acc[shgGroupId]) {
+      acc[shgGroupId] = [];
+    }
+    if (shgGroupId) {
+      acc[shgGroupId].push(product);
+    }
     return acc;
   }, {});
 
@@ -199,7 +320,8 @@ export default function DMMUDashboard() {
     const matchesSearch =
       !searchQuery ||
       shg.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      shg.village?.toLowerCase().includes(searchQuery.toLowerCase());
+      shg.district?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      shg.block?.toLowerCase().includes(searchQuery.toLowerCase());
 
     return (
       matchesSearch &&
@@ -288,7 +410,7 @@ export default function DMMUDashboard() {
             yPosition = 20;
           }
           pdf.text(
-            `${index + 1}. ${shg.name} - ${shg.village || "N/A"} (${
+            `${index + 1}. ${shg.name} - ${shg.district || "N/A"} (${
               shg.status
             })`,
             20,
@@ -312,9 +434,9 @@ export default function DMMUDashboard() {
             (s: any) => s.id === product.shgId || s.id === product.userId
           );
           pdf.text(
-            `${index + 1}. ${product.name} - ₹${product.price} (${
-              product.category
-            })`,
+            `${index + 1}. ${product.name} - ₹${(product.price / 100).toFixed(
+              2
+            )} (${product.category})`,
             20,
             yPosition
           );
@@ -507,7 +629,7 @@ export default function DMMUDashboard() {
       yPosition += 15;
 
       // Products List
-      const products = shgProducts[shg.id] || [];
+      const products = shgProducts[shg.groupId] || [];
       if (products.length > 0) {
         pdf.setFontSize(14);
         pdf.text("Products", 20, yPosition);
@@ -520,9 +642,9 @@ export default function DMMUDashboard() {
             yPosition = 20;
           }
           pdf.text(
-            `${index + 1}. ${product.name} - ₹${product.price} (${
-              product.category
-            })`,
+            `${index + 1}. ${product.name} - ₹${(product.price / 100).toFixed(
+              2
+            )} (${product.category})`,
             20,
             yPosition
           );
@@ -662,37 +784,37 @@ export default function DMMUDashboard() {
                   <CardTitle>Recent Activities</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        New SHG registered in Rampur
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        2 hours ago
-                      </p>
+                  {loading ? (
+                    <div className="text-center py-4">
+                      Loading activities...
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        Monthly meeting completed
-                      </p>
-                      <p className="text-xs text-muted-foreground">1 day ago</p>
+                  ) : recentActivities.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      No recent activities
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">
-                        Bulk order processed
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        3 days ago
-                      </p>
-                    </div>
-                  </div>
+                  ) : (
+                    recentActivities.slice(0, 5).map((activity: any) => (
+                      <div
+                        key={activity.id}
+                        className="flex items-center space-x-4"
+                      >
+                        <div
+                          className={`w-2 h-2 ${getActivityColor(
+                            activity.type
+                          )} rounded-full`}
+                        ></div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium">
+                            {activity.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {activity.location} •{" "}
+                            {formatTimeAgo(activity.timestamp)}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
 
@@ -827,9 +949,6 @@ export default function DMMUDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>SHG Name</TableHead>
-                      <TableHead className="hidden sm:table-cell">
-                        Village
-                      </TableHead>
                       <TableHead className="hidden md:table-cell">
                         Block
                       </TableHead>
@@ -847,13 +966,13 @@ export default function DMMUDashboard() {
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
+                        <TableCell colSpan={7} className="text-center py-8">
                           Loading SHGs...
                         </TableCell>
                       </TableRow>
                     ) : filteredSHGs.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8">
+                        <TableCell colSpan={7} className="text-center py-8">
                           No SHGs found matching your criteria.
                         </TableCell>
                       </TableRow>
@@ -863,29 +982,20 @@ export default function DMMUDashboard() {
                           <TableCell className="font-medium">
                             {shg.name}
                           </TableCell>
-                          <TableCell className="hidden sm:table-cell">
-                            {shg.village}
-                          </TableCell>
                           <TableCell className="hidden md:table-cell">
                             {shg.block}
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
                             {shg.district}
                           </TableCell>
-                          <TableCell>{shg.members}</TableCell>
+                          <TableCell>
+                            {shgMembers[shg.id]?.length || 0}
+                          </TableCell>
                           <TableCell className="hidden sm:table-cell">
-                            {shg.products}
+                            {(shgProducts[shg.groupId] || []).length}
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              variant={
-                                shg.status === "Active"
-                                  ? "default"
-                                  : "secondary"
-                              }
-                            >
-                              {shg.status}
-                            </Badge>
+                            <Badge variant="default">Active</Badge>
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
@@ -913,35 +1023,59 @@ export default function DMMUDashboard() {
                                     </DialogDescription>
                                   </DialogHeader>
                                   <div className="space-y-4">
-                                    {shgProducts[
-                                      shg.id as keyof typeof shgProducts
-                                    ]?.map((product: any) => (
-                                      <div
-                                        key={product.id}
-                                        className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg gap-4"
-                                      >
-                                        <div className="flex-1">
-                                          <h4 className="font-medium">
-                                            {product.name}
-                                          </h4>
-                                          <p className="text-sm text-muted-foreground">
-                                            Category: {product.category}
-                                          </p>
-                                          <p className="text-sm text-muted-foreground">
-                                            Stock: {product.stock} units
-                                          </p>
-                                        </div>
-                                        <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2">
-                                          <p className="font-semibold">
-                                            ₹{product.price}
-                                          </p>
-                                          <Button size="sm">
-                                            <ShoppingCart className="h-4 w-4 mr-1" />
-                                            Order
-                                          </Button>
-                                        </div>
+                                    {shgProducts[shg.groupId]?.length > 0 ? (
+                                      shgProducts[shg.groupId].map(
+                                        (product: any) => (
+                                          <div
+                                            key={product.id}
+                                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-lg gap-4"
+                                          >
+                                            <div className="flex-1">
+                                              <h4 className="font-medium">
+                                                {product.name}
+                                              </h4>
+                                              <p className="text-sm text-muted-foreground">
+                                                Category: {product.category}
+                                              </p>
+                                              {product.description && (
+                                                <p className="text-sm text-muted-foreground">
+                                                  {product.description}
+                                                </p>
+                                              )}
+                                              <p className="text-sm text-muted-foreground">
+                                                Status:{" "}
+                                                {product.status || "Pending"}
+                                              </p>
+                                            </div>
+                                            <div className="flex flex-row sm:flex-col items-center sm:items-end gap-2">
+                                              <p className="font-semibold">
+                                                ₹
+                                                {product.price
+                                                  ? (
+                                                      product.price / 100
+                                                    ).toFixed(2)
+                                                  : "N/A"}
+                                              </p>
+                                              <Button
+                                                size="sm"
+                                                disabled={
+                                                  product.status !== "APPROVED"
+                                                }
+                                              >
+                                                <ShoppingCart className="h-4 w-4 mr-1" />
+                                                {product.status === "APPROVED"
+                                                  ? "Order"
+                                                  : "Unavailable"}
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        )
+                                      )
+                                    ) : (
+                                      <div className="text-center py-8 text-muted-foreground">
+                                        No products available for this SHG
                                       </div>
-                                    ))}
+                                    )}
                                   </div>
                                 </DialogContent>
                               </Dialog>
@@ -977,18 +1111,10 @@ export default function DMMUDashboard() {
                                         </div>
                                         <div>
                                           <Label className="text-sm font-medium">
-                                            Village
-                                          </Label>
-                                          <p className="text-sm mt-1">
-                                            {shg.village}
-                                          </p>
-                                        </div>
-                                        <div>
-                                          <Label className="text-sm font-medium">
                                             Block
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            {shg.block}
+                                            {shg.block || "N/A"}
                                           </p>
                                         </div>
                                         <div>
@@ -996,7 +1122,7 @@ export default function DMMUDashboard() {
                                             District
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            {shg.district}
+                                            {shg.district || "N/A"}
                                           </p>
                                         </div>
                                         <div>
@@ -1004,7 +1130,8 @@ export default function DMMUDashboard() {
                                             Total Members
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            {shg.members} active members
+                                            {shgMembers[shg.id]?.length || 0}{" "}
+                                            members
                                           </p>
                                         </div>
                                         <div>
@@ -1012,15 +1139,19 @@ export default function DMMUDashboard() {
                                             Status
                                           </Label>
                                           <Badge
-                                            variant={
-                                              shg.status === "Active"
-                                                ? "default"
-                                                : "secondary"
-                                            }
+                                            variant="default"
                                             className="mt-1"
                                           >
-                                            {shg.status}
+                                            Active
                                           </Badge>
+                                        </div>
+                                        <div>
+                                          <Label className="text-sm font-medium">
+                                            SHG ID
+                                          </Label>
+                                          <p className="text-sm mt-1">
+                                            {shg.id}
+                                          </p>
                                         </div>
                                       </div>
                                       <div className="space-y-4">
@@ -1029,7 +1160,11 @@ export default function DMMUDashboard() {
                                             Village Organization
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            {shg.vo}
+                                            {shg.voId
+                                              ? vos.find(
+                                                  (v) => v.id === shg.voId
+                                                )?.name || shg.voId
+                                              : "N/A"}
                                           </p>
                                         </div>
                                         <div>
@@ -1037,7 +1172,11 @@ export default function DMMUDashboard() {
                                             Cluster Level Federation
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            {shg.clf}
+                                            {shg.clfId
+                                              ? clfs.find(
+                                                  (c) => c.id === shg.clfId
+                                                )?.name || shg.clfId
+                                              : "N/A"}
                                           </p>
                                         </div>
                                         <div>
@@ -1045,35 +1184,43 @@ export default function DMMUDashboard() {
                                             Products Available
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            {shg.products} different products
+                                            {
+                                              (shgProducts[shg.groupId] || [])
+                                                .length
+                                            }{" "}
+                                            products
                                           </p>
                                         </div>
                                         <div>
                                           <Label className="text-sm font-medium">
-                                            Formation Date
+                                            Type
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            March 15, 2022
+                                            {shg.type || "Standard SHG"}
                                           </p>
                                         </div>
                                         <div>
                                           <Label className="text-sm font-medium">
-                                            Last Meeting
+                                            Registration Date
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            January 10, 2024
+                                            {shg.createdAt
+                                              ? new Date(
+                                                  shg.createdAt
+                                                ).toLocaleDateString()
+                                              : "N/A"}
                                           </p>
                                         </div>
                                         <div>
                                           <Label className="text-sm font-medium">
-                                            Monthly Savings
+                                            Last Updated
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            ₹
-                                            {(
-                                              Math.random() * 5000 +
-                                              2000
-                                            ).toFixed(0)}
+                                            {shg.updatedAt
+                                              ? new Date(
+                                                  shg.updatedAt
+                                                ).toLocaleDateString()
+                                              : "N/A"}
                                           </p>
                                         </div>
                                       </div>
@@ -1085,63 +1232,138 @@ export default function DMMUDashboard() {
                                           Recent Activities
                                         </Label>
                                         <div className="mt-2 space-y-2">
-                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg gap-2">
-                                            <span className="text-sm">
-                                              Monthly savings collection
-                                              completed
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                              2 days ago
-                                            </span>
-                                          </div>
-                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg gap-2">
-                                            <span className="text-sm">
-                                              New product added to catalog
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                              1 week ago
-                                            </span>
-                                          </div>
-                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg gap-2">
-                                            <span className="text-sm">
-                                              Training session conducted
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                              2 weeks ago
-                                            </span>
-                                          </div>
+                                          {recentActivities
+                                            .filter(
+                                              (activity: any) =>
+                                                activity.shgId === shg.groupId
+                                            )
+                                            .slice(0, 3)
+                                            .map((activity: any) => (
+                                              <div
+                                                key={activity.id}
+                                                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-lg gap-2"
+                                              >
+                                                <span className="text-sm">
+                                                  {activity.description}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                  {formatTimeAgo(
+                                                    activity.timestamp
+                                                  )}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          {recentActivities.filter(
+                                            (activity: any) =>
+                                              activity.shgId === shg.groupId
+                                          ).length === 0 && (
+                                            <div className="text-sm text-muted-foreground">
+                                              No recent activities recorded
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
 
                                       <div>
                                         <Label className="text-sm font-medium">
-                                          Contact Information
+                                          Product Categories
                                         </Label>
-                                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                          <div>
-                                            <p className="text-sm text-muted-foreground">
-                                              President
-                                            </p>
-                                            <p className="text-sm font-medium">
-                                              Sunita Devi
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                              +91 98765 43210
-                                            </p>
-                                          </div>
-                                          <div>
-                                            <p className="text-sm text-muted-foreground">
-                                              Secretary
-                                            </p>
-                                            <p className="text-sm font-medium">
-                                              Meera Sharma
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                              +91 98765 43211
-                                            </p>
-                                          </div>
+                                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                          {Array.from(
+                                            new Set(
+                                              (
+                                                shgProducts[shg.groupId] || []
+                                              ).map((p: any) => p.category)
+                                            )
+                                          ).map(
+                                            (category: any, index: number) => (
+                                              <div
+                                                key={index}
+                                                className="flex items-center gap-2"
+                                              >
+                                                <Package className="h-4 w-4 text-muted-foreground" />
+                                                <span className="text-sm">
+                                                  {category}
+                                                </span>
+                                              </div>
+                                            )
+                                          )}
+                                          {(shgProducts[shg.groupId] || [])
+                                            .length === 0 && (
+                                            <span className="text-sm text-muted-foreground">
+                                              No products registered
+                                            </span>
+                                          )}
                                         </div>
                                       </div>
+                                    </div>
+
+                                    {/* Member Details Section */}
+                                    <div>
+                                      <h3 className="text-lg font-semibold mb-3">
+                                        Members
+                                      </h3>
+                                      {loading ? (
+                                        <div className="flex justify-center items-center py-8">
+                                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                          <span className="ml-2">
+                                            Loading members...
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow>
+                                              <TableHead>Member ID</TableHead>
+                                              <TableHead>Name</TableHead>
+                                              <TableHead>
+                                                Phone Number
+                                              </TableHead>
+                                              <TableHead>Status</TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {shgMembers[shg.id]?.length ===
+                                            0 ? (
+                                              <TableRow>
+                                                <TableCell
+                                                  colSpan={4}
+                                                  className="text-center py-8 text-gray-500"
+                                                >
+                                                  No members found for this SHG
+                                                </TableCell>
+                                              </TableRow>
+                                            ) : (
+                                              shgMembers[shg.id]?.map(
+                                                (
+                                                  member: any,
+                                                  index: number
+                                                ) => (
+                                                  <TableRow
+                                                    key={member.userId || index}
+                                                  >
+                                                    <TableCell className="font-medium">
+                                                      {member.userId ||
+                                                        `Member-${index + 1}`}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      {member.name || "N/A"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      {member.phone || "N/A"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      <Badge variant="outline">
+                                                        Active
+                                                      </Badge>
+                                                    </TableCell>
+                                                  </TableRow>
+                                                )
+                                              ) || []
+                                            )}
+                                          </TableBody>
+                                        </Table>
+                                      )}
                                     </div>
 
                                     <div className="flex flex-col sm:flex-row justify-end gap-2">
@@ -1293,7 +1515,7 @@ export default function DMMUDashboard() {
                           </TableCell>
                           <TableCell>{vo.shgs}</TableCell>
                           <TableCell className="hidden sm:table-cell">
-                            {vo.members}
+                            {voMembers[vo.id]?.length || 0}
                           </TableCell>
                           <TableCell>
                             <Badge variant="default">{vo.status}</Badge>
@@ -1369,7 +1591,8 @@ export default function DMMUDashboard() {
                                             Total Members
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            {vo.members} women
+                                            {voMembers[vo.id]?.length || 0}{" "}
+                                            members
                                           </p>
                                         </div>
                                       </div>
@@ -1402,6 +1625,73 @@ export default function DMMUDashboard() {
                                           </p>
                                         </div>
                                       </div>
+                                    </div>
+
+                                    {/* Member Details Section */}
+                                    <div>
+                                      <h3 className="text-lg font-semibold mb-3">
+                                        Members
+                                      </h3>
+                                      {loading ? (
+                                        <div className="flex justify-center items-center py-8">
+                                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                          <span className="ml-2">
+                                            Loading members...
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow>
+                                              <TableHead>Member ID</TableHead>
+                                              <TableHead>Name</TableHead>
+                                              <TableHead>
+                                                Phone Number
+                                              </TableHead>
+                                              <TableHead>Status</TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {voMembers[vo.id]?.length === 0 ? (
+                                              <TableRow>
+                                                <TableCell
+                                                  colSpan={4}
+                                                  className="text-center py-8 text-gray-500"
+                                                >
+                                                  No members found for this VO
+                                                </TableCell>
+                                              </TableRow>
+                                            ) : (
+                                              voMembers[vo.id]?.map(
+                                                (
+                                                  member: any,
+                                                  index: number
+                                                ) => (
+                                                  <TableRow
+                                                    key={member.userId || index}
+                                                  >
+                                                    <TableCell className="font-medium">
+                                                      {member.userId ||
+                                                        `Member-${index + 1}`}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      {member.name || "N/A"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      {member.phone || "N/A"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      <Badge variant="outline">
+                                                        Active
+                                                      </Badge>
+                                                    </TableCell>
+                                                  </TableRow>
+                                                )
+                                              ) || []
+                                            )}
+                                          </TableBody>
+                                        </Table>
+                                      )}
                                     </div>
 
                                     <div>
@@ -1545,7 +1835,7 @@ export default function DMMUDashboard() {
                             {clf.shgs}
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
-                            {clf.members}
+                            {clfMembers[clf.id]?.length || 0}
                           </TableCell>
                           <TableCell>
                             <Badge variant="default">{clf.status}</Badge>
@@ -1623,7 +1913,8 @@ export default function DMMUDashboard() {
                                             Total Members
                                           </Label>
                                           <p className="text-sm mt-1">
-                                            {clf.members} women
+                                            {clfMembers[clf.id]?.length || 0}{" "}
+                                            members
                                           </p>
                                         </div>
                                         <div>
@@ -1656,6 +1947,74 @@ export default function DMMUDashboard() {
                                           </p>
                                         </div>
                                       </div>
+                                    </div>
+
+                                    {/* Member Details Section */}
+                                    <div>
+                                      <h3 className="text-lg font-semibold mb-3">
+                                        Members
+                                      </h3>
+                                      {loading ? (
+                                        <div className="flex justify-center items-center py-8">
+                                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                                          <span className="ml-2">
+                                            Loading members...
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow>
+                                              <TableHead>Member ID</TableHead>
+                                              <TableHead>Name</TableHead>
+                                              <TableHead>
+                                                Phone Number
+                                              </TableHead>
+                                              <TableHead>Status</TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {clfMembers[clf.id]?.length ===
+                                            0 ? (
+                                              <TableRow>
+                                                <TableCell
+                                                  colSpan={4}
+                                                  className="text-center py-8 text-gray-500"
+                                                >
+                                                  No members found for this CLF
+                                                </TableCell>
+                                              </TableRow>
+                                            ) : (
+                                              clfMembers[clf.id]?.map(
+                                                (
+                                                  member: any,
+                                                  index: number
+                                                ) => (
+                                                  <TableRow
+                                                    key={member.userId || index}
+                                                  >
+                                                    <TableCell className="font-medium">
+                                                      {member.userId ||
+                                                        `Member-${index + 1}`}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      {member.name || "N/A"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      {member.phone || "N/A"}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                      <Badge variant="outline">
+                                                        Active
+                                                      </Badge>
+                                                    </TableCell>
+                                                  </TableRow>
+                                                )
+                                              ) || []
+                                            )}
+                                          </TableBody>
+                                        </Table>
+                                      )}
                                     </div>
 
                                     <div>
@@ -1930,7 +2289,9 @@ export default function DMMUDashboard() {
                           <TableCell>
                             <Badge variant="outline">{product.category}</Badge>
                           </TableCell>
-                          <TableCell>₹{product.price}</TableCell>
+                          <TableCell>
+                            ₹{(product.price / 100).toFixed(2)}
+                          </TableCell>
                           <TableCell>{product.stock} units</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -1963,7 +2324,7 @@ export default function DMMUDashboard() {
                                       <div>
                                         <Label>Price</Label>
                                         <p className="text-sm font-semibold">
-                                          ₹{product.price}
+                                          ₹{(product.price / 100).toFixed(2)}
                                         </p>
                                       </div>
                                       <div>
