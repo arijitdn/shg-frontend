@@ -37,7 +37,7 @@ export const productCategories: ProductCategory[] = [
     value: "toys",
   },
   {
-    name: "Others",
-    value: "others",
+    name: "Other",
+    value: "other",
   },
 ];
